@@ -16,9 +16,10 @@ from pydantic import BaseModel, Field
 
 from .jobs import JobManager
 from .storage import Store
-from .structure import fetch_rcsb, parse_text, rcsb_entry_metadata
+from .structure import apply_source_chain_names, fetch_rcsb, parse_text, rcsb_entry_metadata
 
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
+ACTIVE_JOB_STATES = {"queued", "running"}
 
 
 class PDBRequest(BaseModel):
@@ -75,11 +76,21 @@ def create_app(data_dir: str | Path | None = None) -> FastAPI:
     def health():
         return {"status": "ok", "version": "0.2.0"}
 
+    def history_item(item: dict) -> dict:
+        # The history list only needs chain composition; full metadata repeats
+        # every residue of every chain and is served by the result endpoint.
+        metadata = item.pop("metadata", {}) or {}
+        item["chains"] = [
+            {"id": chain.get("id"), "name": chain.get("name"), "residue_count": chain.get("residue_count", 0)}
+            for chain in metadata.get("chains", [])
+        ]
+        if "rcsb" in metadata:
+            item["rcsb"] = metadata["rcsb"]
+        return {**item, "jobs": store.list_jobs(item["id"])}
+
     @app.get("/api/analyses")
     def analyses():
-        return {"analyses": [
-            {**item, "jobs": store.list_jobs(item["id"])} for item in store.list_analyses()
-        ]}
+        return {"analyses": [history_item(item) for item in store.list_analyses()]}
 
     @app.post("/api/analyses/upload", status_code=202)
     async def upload_analysis(file: UploadFile = File(...)):
@@ -140,7 +151,14 @@ def create_app(data_dir: str | Path | None = None) -> FastAPI:
         item = store.get_analysis(analysis_id)
         if not item or not item.get("result_path"):
             raise HTTPException(404, "Interface results are not ready")
-        return JSONResponse(json.loads(Path(item["result_path"]).read_text()))
+        result = json.loads(Path(item["result_path"]).read_text())
+        # Results saved before chain names were read from the file show
+        # "Chain A"; backfill them once from the stored coordinates.
+        source_text = Path(item["source_path"]).read_text(errors="replace")
+        if apply_source_chain_names(result, source_text, item["source_format"]):
+            store.write_json(item["result_path"], result)
+            store.update_analysis(analysis_id, metadata_json=json.dumps({**item["metadata"], **result["metadata"]}))
+        return JSONResponse(result)
 
     @app.get("/api/analyses/{analysis_id}/curvature")
     def curvature_result(analysis_id: str):
@@ -250,10 +268,28 @@ def create_app(data_dir: str | Path | None = None) -> FastAPI:
         return StreamingResponse(archive, media_type="application/zip",
                                  headers={"Content-Disposition": f'attachment; filename="{analysis_id}.zip"'})
 
+    def has_active_jobs(analysis_id: str) -> bool:
+        return any(job["status"] in ACTIVE_JOB_STATES for job in store.list_jobs(analysis_id))
+
+    @app.delete("/api/analyses", status_code=200)
+    def clear_history():
+        # Workers write into each analysis directory, so active analyses are
+        # kept rather than deleted out from under a running process.
+        deleted, skipped = [], []
+        for item in store.list_analyses(limit=-1):
+            if has_active_jobs(item["id"]):
+                skipped.append(item["id"])
+            elif store.delete_analysis(item["id"]):
+                deleted.append(item["id"])
+        return {"deleted": deleted, "skipped": skipped}
+
     @app.delete("/api/analyses/{analysis_id}", status_code=204)
     def delete_analysis(analysis_id: str):
-        if not store.delete_analysis(analysis_id):
+        if not store.get_analysis(analysis_id):
             raise HTTPException(404, "Analysis not found")
+        if has_active_jobs(analysis_id):
+            raise HTTPException(409, "Cancel or wait for running jobs before deleting this analysis")
+        store.delete_analysis(analysis_id)
         return None
 
     app.mount("/static", StaticFiles(directory=static_dir), name="static")

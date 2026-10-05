@@ -17,30 +17,53 @@
       <div class="badge">Local analysis · results stay on this computer</div>
     </header>
 
-    <section class="input-grid">
-      <form id="upload-form" class="panel input-panel">
-        <div class="panel-title"><span class="step">01</span><div><h2>Upload coordinates</h2><p>PDB or mmCIF, up to 50 MB</p></div></div>
-        <label class="file-drop" for="structure-file"><input id="structure-file" name="file" type="file" accept=".pdb,.ent,.cif,.mmcif,.gz" required><span id="file-label">Choose a PDB/mmCIF file</span></label>
-        <button class="primary" type="submit">Analyze uploaded structure</button>
-      </form>
-      <form id="pdb-form" class="panel input-panel">
-        <div class="panel-title"><span class="step">02</span><div><h2>Retrieve from RCSB</h2><p>Use deposited coordinates or a biological assembly</p></div></div>
-        <div class="inline-fields"><label>PDB ID<input id="pdb-id" pattern="[A-Za-z0-9]{4}" maxlength="4" placeholder="3BPN" required></label><label>Assembly <input id="assembly-id" placeholder="blank = deposited"><small id="assembly-note" class="muted">Enter an ID to check available assemblies.</small></label></div>
-        <button class="secondary" type="submit">Retrieve and analyze</button>
-      </form>
-    </section>
+    <div id="app-layout" class="app-layout">
+      <aside id="source-drawer" class="source-drawer" aria-label="Open a structure and recent analyses">
+        <div class="menu-head">
+          <h2 class="menu-title">Open a structure</h2>
+          <button id="drawer-toggle" class="menu-toggle" type="button" aria-expanded="true" aria-controls="drawer-body" aria-label="Collapse menu" title="Collapse menu">‹</button>
+        </div>
+        <div id="drawer-body" class="drawer-body">
+          <div class="open-block">
+            <form id="pdb-form" class="fetch-row">
+              <label class="field"><span class="field-label">PDB ID</span><input id="pdb-id" pattern="[A-Za-z0-9]{4}" maxlength="4" placeholder="3BPN" autocomplete="off" spellcheck="false" required></label>
+              <label class="field"><span class="field-label">Assembly</span><input id="assembly-id" placeholder="Deposited" autocomplete="off"></label>
+              <button class="fetch-button" type="submit">Fetch</button>
+            </form>
+            <p id="assembly-note" class="field-hint" hidden></p>
+            <form id="upload-form" class="drop-zone">
+              <label id="drop-label" class="drop-label" for="structure-file">
+                <input id="structure-file" name="file" type="file" accept=".pdb,.ent,.cif,.mmcif,.gz" required>
+                <span id="file-label">Drop a .pdb or .cif file, or <u>browse</u></span>
+              </label>
+              <button id="upload-submit" class="drop-submit" type="submit" hidden>Analyze</button>
+            </form>
+          </div>
+          <section class="history-zone" aria-labelledby="history-heading">
+            <div class="history-head">
+              <h3 id="history-heading">Recent analyses <span id="history-count" class="history-count"></span></h3>
+              <button id="refresh-history" class="text-button" type="button" aria-label="Refresh recent analyses" title="Refresh">↻</button>
+              <button id="clear-history" class="text-button danger" type="button" disabled>Clear all</button>
+            </div>
+            <div id="history" class="history-list"><p class="history-empty">Structures you open appear here.</p></div>
+          </section>
+        </div>
+      </aside>
+      <div id="drawer-backdrop" class="drawer-backdrop" hidden></div>
 
-    <section class="panel history-panel">
-      <div class="section-heading"><div><p class="eyebrow">LOCAL HISTORY</p><h2>Recent analyses</h2></div><button id="refresh-history" class="quiet">Refresh</button></div>
-      <div id="history" class="history-list"><p class="muted">No analyses yet.</p></div>
+      <div id="main-column" class="main-column">
+    <div id="status-message" class="notice" hidden></div>
+    <section id="empty-workspace" class="panel empty-workspace">
+      <h2>No analysis open</h2>
+      <p class="muted">Fetch a PDB entry, drop a coordinate file, or pick one of your recent analyses.</p>
+      <button class="drawer-open primary" type="button" aria-controls="source-drawer">Open structure</button>
     </section>
 
     <section id="workspace" hidden>
       <div class="workspace-head">
         <div><p class="eyebrow">ACTIVE ANALYSIS</p><h2 id="analysis-title">—</h2><p id="analysis-meta" class="muted">—</p></div>
-        <div class="workspace-actions"><a id="export-link" class="export-link" href="#">Download ZIP</a><div id="analysis-status" class="status-pill">queued</div></div>
+        <div class="workspace-actions"><button id="drawer-open" class="drawer-open text-button" type="button" aria-controls="source-drawer">Open structure</button><a id="export-link" class="export-link" href="#">Download ZIP</a><div id="analysis-status" class="status-pill">queued</div></div>
       </div>
-      <div id="status-message" class="notice" hidden></div>
 
       <div class="workspace-layout">
         <aside id="interfaces-sidebar" class="panel interfaces-sidebar" aria-label="Interface chain-pair results">
@@ -56,6 +79,25 @@
         </aside>
 
         <div class="workspace-main">
+          <section id="surface-panel" class="panel surface-panel">
+            <div class="section-heading"><div><p class="eyebrow">STRUCTURE AND SURFACE</p><h2>3D Zernike surface</h2><p class="muted">Drag to rotate, scroll to zoom, or select a residue in the surface, contact map, or tables.</p></div><span id="surface-status" class="status-pill">waiting</span></div>
+            <div class="surface-controls">
+              <label>Curvature resolution<select id="surface-resolution"><option value="4">4 Å · fine</option><option value="6" selected>6 Å · default</option><option value="8">8 Å · broad</option></select></label>
+              <label>Surface opacity<input id="surface-opacity" type="range" min="0" max="0.85" step="0.05" value="0.55"><output id="surface-opacity-value" for="surface-opacity">55%</output></label>
+              <label>Contact padding<input id="surface-padding" type="range" min="0" max="8" step="0.5" value="2"><output id="surface-padding-value" for="surface-padding">2.0 Å</output></label>
+              <label>Separate opposing surfaces<input id="surface-separation" type="range" min="0" max="12" step="0.5" value="0"><output id="surface-separation-value" for="surface-separation">0.0 Å</output></label>
+              <div id="chain-toggles" class="chain-toggles" aria-label="Chain visibility"></div>
+            </div>
+            <div class="surface-colorbar"><span id="surface-color-min">−</span><span class="surface-color-ramp" aria-hidden="true"></span><span>0</span><span id="surface-color-max">+</span><span id="surface-color-label">H (Å⁻¹) · 6 Å neighborhoods</span><span class="surface-grey-swatch" aria-hidden="true"></span><span>outside padded contact</span></div>
+            <div id="protein-stats" class="surface-stats" aria-label="Whole-protein surface summaries"></div>
+            <div id="surface-pair-stats" class="surface-stats" aria-label="Selected interface surface summaries"></div>
+            <div id="surface-view" class="surface-view" role="img" aria-label="Interactive three-dimensional binding interface"></div>
+            <div id="surface-tip" class="surface-tip" role="tooltip" aria-hidden="true"></div>
+            <p id="surface-selection" class="note" aria-live="polite">Select a residue in the surface, contact map, or interface table.</p>
+            <p id="surface-note" class="note"></p>
+            <div class="table-wrap curvature-table-wrap"><table><thead><tr><th>Chain</th><th>Residue</th><th>Patch area</th><th>Mean H</th><th>Convex</th><th>Concave</th><th>ΔSASA</th></tr></thead><tbody id="curvature-table"></tbody></table></div>
+          </section>
+
           <section id="pair-workspace" class="panel pair-panel" hidden>
             <div class="section-heading"><div><p class="eyebrow">SELECTED INTERFACE</p><h2 id="pair-title">—</h2></div><span id="pair-summary" class="muted"></span></div>
             <div id="pair-stats" class="stat-grid"></div>
@@ -96,25 +138,6 @@
             </section>
           </section>
 
-          <section id="surface-panel" class="panel surface-panel">
-            <div class="section-heading"><div><p class="eyebrow">STRUCTURE AND SURFACE</p><h2>3D Zernike surface</h2><p class="muted">Drag to rotate, scroll to zoom, or select a residue in the surface, contact map, or tables.</p></div><span id="surface-status" class="status-pill">waiting</span></div>
-            <div class="surface-controls">
-              <label>Curvature resolution<select id="surface-resolution"><option value="4">4 Å · fine</option><option value="6" selected>6 Å · default</option><option value="8">8 Å · broad</option></select></label>
-              <label>Surface opacity<input id="surface-opacity" type="range" min="0" max="0.85" step="0.05" value="0.55"><output id="surface-opacity-value" for="surface-opacity">55%</output></label>
-              <label>Contact padding<input id="surface-padding" type="range" min="0" max="8" step="0.5" value="2"><output id="surface-padding-value" for="surface-padding">2.0 Å</output></label>
-              <label>Separate opposing surfaces<input id="surface-separation" type="range" min="0" max="12" step="0.5" value="0"><output id="surface-separation-value" for="surface-separation">0.0 Å</output></label>
-              <div id="chain-toggles" class="chain-toggles" aria-label="Chain visibility"></div>
-            </div>
-            <div class="surface-colorbar"><span id="surface-color-min">−</span><span class="surface-color-ramp" aria-hidden="true"></span><span>0</span><span id="surface-color-max">+</span><span id="surface-color-label">H (Å⁻¹) · 6 Å neighborhoods</span><span class="surface-grey-swatch" aria-hidden="true"></span><span>outside padded contact</span></div>
-            <div id="protein-stats" class="surface-stats" aria-label="Whole-protein surface summaries"></div>
-            <div id="surface-pair-stats" class="surface-stats" aria-label="Selected interface surface summaries"></div>
-            <div id="surface-view" class="surface-view" role="img" aria-label="Interactive three-dimensional binding interface"></div>
-            <div id="surface-tip" class="surface-tip" role="tooltip" aria-hidden="true"></div>
-            <p id="surface-selection" class="note" aria-live="polite">Select a residue in the surface, contact map, or interface table.</p>
-            <p id="surface-note" class="note"></p>
-            <div class="table-wrap curvature-table-wrap"><table><thead><tr><th>Chain</th><th>Residue</th><th>Patch area</th><th>Mean H</th><th>Convex</th><th>Concave</th><th>ΔSASA</th></tr></thead><tbody id="curvature-table"></tbody></table></div>
-          </section>
-
           <section id="pocket-panel" class="panel pocket-panel" hidden>
             <div class="section-heading"><div><p class="eyebrow">POCKET GEOMETRY</p><h2>Compare a selected region</h2><p class="muted">The grid detector identifies standard-probe space that is not connected to broad bulk-solvent space.</p></div><span id="pocket-job-status" class="status-pill" hidden></span></div>
             <form id="pocket-form" class="pocket-controls">
@@ -129,6 +152,8 @@
         </div>
       </div>
     </section>
+      </div>
+    </div>
   </main>
   <script src="/static/ngl.js"></script>
   <script src="/static/app.js"></script>

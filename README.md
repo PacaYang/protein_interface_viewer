@@ -71,6 +71,12 @@ choosing a target chain, residue anchor, partner chain, and 4–12 Å radius.
 The workspace mirrors the standalone `contact_map.html` view while keeping the
 analysis data local to the browser app:
 
+- A collapsible side menu holds `Upload coordinates`, `Retrieve from RCSB`,
+  and `Local history`. History entries can be deleted individually or with
+  `Clear all`. Analyses with queued or running jobs are kept until they finish.
+- Chains are labeled with the molecule name declared in the file (PDB
+  `COMPND MOLECULE` or mmCIF `_entity.pdbx_description`) plus the chain ID.
+  Analyses saved before this change are relabeled when they are opened.
 - `INTERFACES` is a collapsible chain-pair list on the left. Selecting a pair
   opens its `Residue interface` and `Closest contact pairs` tabs in the main
   pane.

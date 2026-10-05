@@ -77,6 +77,7 @@ function fmt(value, digits = 1) {
 }
 
 function showError(error) {
+  closeDrawer();
   $("status-message").hidden = false;
   $("status-message").textContent = error.message || String(error);
 }
@@ -99,36 +100,223 @@ function residueDisplay(identity) {
   return identity ? `${identity.chain_id}:${residueLabel(identity)}` : "n/a";
 }
 
+// Molecule name declared in the coordinate file, with the chain ID kept so
+// identical copies (homodimers) stay distinguishable.
+function chainLabel(chainId) {
+  const chain = (state.result?.metadata?.chains || []).find((item) => item.id === chainId);
+  const name = chain?.name;
+  return name && name !== `Chain ${chainId}` ? `${name} (${chainId})` : `Chain ${chainId ?? "?"}`;
+}
+
 function setStatus(status) {
   $("analysis-status").textContent = status;
   $("analysis-status").className = `status-pill ${esc(status)}`;
+}
+
+const activeStatuses = ["queued", "running"];
+const statusWords = {queued: "Queued", running: "Running", failed: "Failed", cancelled: "Cancelled", interrupted: "Interrupted"};
+
+function isActiveAnalysis(analysis) {
+  return activeStatuses.includes(analysis.status)
+    || (analysis.jobs || []).some((job) => activeStatuses.includes(job.status));
+}
+
+function relativeTime(iso) {
+  const date = new Date(iso);
+  const today = new Date();
+  const days = Math.round((new Date(today.toDateString()) - new Date(date.toDateString())) / 86400000);
+  if (days === 0) return date.toLocaleTimeString([], {hour: "numeric", minute: "2-digit"});
+  if (days === 1) return "Yesterday";
+  return date.toLocaleDateString([], {day: "numeric", month: "short", ...(date.getFullYear() === today.getFullYear() ? {} : {year: "numeric"})});
+}
+
+// One segment per chain, sized by residue count and coloured like that
+// chain's cartoon in the 3D view.
+function chainStrip(chains) {
+  if (!chains?.length) return '<span class="chain-strip pending" aria-hidden="true"><i style="flex-grow:1"></i></span>';
+  const description = chains.map((chain) => `${chain.name && chain.name !== `Chain ${chain.id}` ? `${chain.name} (${chain.id})` : `Chain ${chain.id}`}, ${chain.residue_count} residues`).join("; ");
+  const segments = chains.map((chain, index) => `<i style="flex-grow:${Math.max(1, Number(chain.residue_count) || 1)};background:${cartoonColors[index % cartoonColors.length]}"></i>`).join("");
+  return `<span class="chain-strip" role="img" aria-label="${esc(description)}" title="${esc(description)}">${segments}</span>`;
+}
+
+function historyRow(analysis) {
+  const busy = isActiveAnalysis(analysis);
+  const status = busy ? (analysis.status === "queued" ? "queued" : "running") : analysis.status;
+  const word = statusWords[status];
+  const stamp = new Date(analysis.created_at).toLocaleString();
+  const whenClass = word ? (busy ? "running" : "failed") : "";
+  const when = word || relativeTime(analysis.created_at);
+  const whenTitle = analysis.error ? `${word}: ${analysis.error}` : `${word ? `${word} · ` : ""}${stamp}`;
+  const remove = busy
+    ? '<span aria-hidden="true"></span>'
+    : `<button class="history-delete" type="button" data-delete="${esc(analysis.id)}" title="Delete from history" aria-label="Delete ${esc(analysis.source_name)} from history">×</button>`;
+  return `<div class="history-row ${analysis.id === state.analysisId ? "active" : ""}" data-id="${esc(analysis.id)}" tabindex="0"
+      aria-label="Open ${esc(analysis.source_name)}, ${esc(word || "complete")}, ${esc(stamp)}">
+    <span class="history-name" title="${esc(analysis.source_name)}">${esc(analysis.source_name)}</span>
+    <span class="history-when ${whenClass}" title="${esc(busy ? `${whenTitle} · delete after the analysis finishes` : whenTitle)}">${esc(when)}</span>
+    ${remove}
+    ${chainStrip(analysis.chains)}
+  </div>`;
 }
 
 async function refreshHistory() {
   try {
     const data = await getJSON("/api/analyses");
     const host = $("history");
-    if (!data.analyses.length) {
-      host.innerHTML = '<p class="muted">No analyses yet.</p>';
+    const count = data.analyses.length;
+    $("history-count").textContent = count ? `(${count})` : "";
+    $("clear-history").disabled = !count;
+    if (!count) {
+      host.innerHTML = '<p class="history-empty">Structures you open appear here.</p>';
       return;
     }
-    host.innerHTML = data.analyses.map((analysis) => `
-      <div class="history-row" data-id="${esc(analysis.id)}" tabindex="0">
-        <div><strong>${esc(analysis.source_name)}</strong><small>${esc(analysis.source_kind)} · ${esc(analysis.status)} · ${new Date(analysis.created_at).toLocaleString()}</small></div>
-        <span class="status-pill">${esc(analysis.status)}</span>
-      </div>`).join("");
+    host.innerHTML = data.analyses.map(historyRow).join("");
     host.querySelectorAll(".history-row").forEach((row) => {
       row.addEventListener("click", () => openAnalysis(row.dataset.id));
       row.addEventListener("keydown", (event) => {
+        if (event.target !== row) return;
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           openAnalysis(row.dataset.id);
         }
       });
     });
+    host.querySelectorAll(".history-delete").forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        deleteAnalysis(button.dataset.delete);
+      });
+    });
   } catch (error) {
     showError(error);
   }
+}
+
+function closeWorkspace() {
+  resetState();
+  state.analysisId = null;
+  $("workspace").hidden = true;
+  $("empty-workspace").hidden = false;
+}
+
+async function deleteAnalysis(id) {
+  const row = $("history").querySelector(`.history-row[data-id="${CSS.escape(id)}"]`);
+  const name = row?.querySelector(".history-name")?.textContent || "this analysis";
+  if (!window.confirm(`Delete "${name}" and its saved results? This can't be undone.`)) return;
+  clearError();
+  try {
+    const response = await fetch(`/api/analyses/${encodeURIComponent(id)}`, {method: "DELETE"});
+    if (!response.ok && response.status !== 404) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.detail || "Delete failed");
+    }
+    if (state.analysisId === id) closeWorkspace();
+  } catch (error) {
+    showError(error);
+  }
+  refreshHistory();
+}
+
+async function clearHistory() {
+  if (!window.confirm("Delete all recent analyses and their saved results? This can't be undone.")) return;
+  clearError();
+  try {
+    const body = await getJSON("/api/analyses", {method: "DELETE"});
+    if (body.deleted.includes(state.analysisId)) closeWorkspace();
+    if (body.skipped.length) {
+      showError(new Error(`${body.skipped.length} running analysis${body.skipped.length === 1 ? " was" : "es were"} kept. Delete ${body.skipped.length === 1 ? "it" : "them"} after the analysis finishes.`));
+    }
+  } catch (error) {
+    showError(error);
+  }
+  refreshHistory();
+}
+
+// Above 1100px the menu sits beside the workspace and collapses to a rail.
+// At or below it, the menu is an off-canvas drawer over the workspace.
+const overlayQuery = window.matchMedia("(max-width: 1100px)");
+let drawerReturnFocus = null;
+
+function setDrawerCollapsed(collapsed) {
+  const button = $("drawer-toggle");
+  button.setAttribute("aria-expanded", String(!collapsed));
+  button.textContent = collapsed ? "›" : "‹";
+  button.title = collapsed ? "Expand menu" : "Collapse menu";
+  button.setAttribute("aria-label", button.title);
+  $("app-layout").classList.toggle("drawer-collapsed", collapsed);
+  try { localStorage.setItem("drawerCollapsed", collapsed ? "1" : "0"); } catch (_) {}
+}
+
+function syncDrawerMode() {
+  const button = $("drawer-toggle");
+  const drawer = $("source-drawer");
+  if (overlayQuery.matches) {
+    const open = document.body.classList.contains("drawer-open-state");
+    button.textContent = "‹";
+    button.title = "Close menu";
+    button.setAttribute("aria-label", "Close menu");
+    button.setAttribute("aria-expanded", String(open));
+    drawer.setAttribute("role", "dialog");
+    drawer.toggleAttribute("aria-modal", open);
+  } else {
+    closeDrawer(false);
+    drawer.removeAttribute("role");
+    drawer.removeAttribute("aria-modal");
+    setDrawerCollapsed($("app-layout").classList.contains("drawer-collapsed"));
+  }
+}
+
+function openDrawer() {
+  if (!overlayQuery.matches) {
+    setDrawerCollapsed(false);
+    return;
+  }
+  drawerReturnFocus = document.activeElement;
+  document.body.classList.add("drawer-open-state");
+  $("drawer-backdrop").hidden = false;
+  $("main-column").inert = true;
+  syncDrawerMode();
+  $("pdb-id").focus();
+}
+
+function closeDrawer(restoreFocus = true) {
+  if (!document.body.classList.contains("drawer-open-state")) return;
+  const hadFocus = $("source-drawer").contains(document.activeElement);
+  document.body.classList.remove("drawer-open-state");
+  $("drawer-backdrop").hidden = true;
+  $("main-column").inert = false;
+  if (overlayQuery.matches) syncDrawerMode();
+  if (restoreFocus && hadFocus && drawerReturnFocus?.isConnected) drawerReturnFocus.focus();
+  drawerReturnFocus = null;
+}
+
+function setChosenFile(file) {
+  $("file-label").innerHTML = file ? esc(file.name) : "Drop a .pdb or .cif file, or <u>browse</u>";
+  $("upload-form").classList.toggle("has-file", Boolean(file));
+  $("upload-submit").hidden = !file;
+}
+
+function bindDropZone() {
+  const zone = $("upload-form");
+  const input = $("structure-file");
+  input.addEventListener("change", () => setChosenFile(input.files[0]));
+  zone.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    zone.classList.add("dragover");
+  });
+  zone.addEventListener("dragleave", (event) => {
+    if (!zone.contains(event.relatedTarget)) zone.classList.remove("dragover");
+  });
+  zone.addEventListener("drop", (event) => {
+    event.preventDefault();
+    zone.classList.remove("dragover");
+    const file = event.dataTransfer?.files?.[0];
+    if (!file) return;
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    input.files = transfer.files;
+    setChosenFile(file);
+  });
 }
 
 async function submitUpload(event) {
@@ -170,16 +358,21 @@ async function submitPdb(event) {
 
 async function inspectPdb() {
   const id = $("pdb-id").value.trim();
-  if (!/^[A-Za-z0-9]{4}$/.test(id)) return;
+  const note = $("assembly-note");
+  if (!/^[A-Za-z0-9]{4}$/.test(id)) {
+    note.hidden = true;
+    return;
+  }
   try {
     const data = await getJSON(`/api/rcsb/${id}/metadata`);
     const ids = data.rcsb_entry_container_identifiers?.assembly_ids || [];
-    $("assembly-note").textContent = ids.length
-      ? `Available biological assemblies: ${ids.join(", ")}`
-      : "No assembly metadata; blank uses deposited coordinates.";
+    note.textContent = ids.length
+      ? `Assembl${ids.length === 1 ? "y" : "ies"} ${ids.join(", ")} available. Leave blank for the deposited coordinates.`
+      : "No assemblies listed. The deposited coordinates will be used.";
   } catch (_) {
-    $("assembly-note").textContent = "Metadata lookup unavailable; blank uses deposited coordinates.";
+    note.textContent = "Couldn't check assemblies. Leave blank for the deposited coordinates.";
   }
+  note.hidden = false;
 }
 
 function resetState() {
@@ -237,6 +430,11 @@ async function openAnalysis(id) {
   resetState();
   state.analysisId = id;
   $("workspace").hidden = false;
+  $("empty-workspace").hidden = true;
+  closeDrawer(false);
+  $("history").querySelectorAll(".history-row").forEach((row) => {
+    row.classList.toggle("active", row.dataset.id === id);
+  });
   clearError();
   const generation = state.analysisGeneration;
   await refreshAnalysis();
@@ -275,7 +473,10 @@ async function refreshAnalysis() {
     }
     renderJobs(analysis.jobs || []);
     if (["complete", "failed", "cancelled", "interrupted"].includes(analysis.status)) {
-      if (state.timer) clearInterval(state.timer);
+      if (state.timer) {
+        clearInterval(state.timer);
+        refreshHistory();
+      }
       state.timer = null;
     }
   } catch (error) {
@@ -443,7 +644,7 @@ function renderInterfaces() {
   const pairs = state.result?.pairs || [];
   $("interfaces").innerHTML = pairs.length
     ? pairs.map((pair) => `<article class="interface-card ${state.pairId === pair.id ? "active" : ""}" data-pair="${esc(pair.id)}" tabindex="0">
-        <h3>${esc(pair.name_a)} × ${esc(pair.name_b)}</h3>
+        <h3>${esc(chainLabel(pair.chain_a))} × ${esc(chainLabel(pair.chain_b))}</h3>
         <div class="numbers"><span class="chip">BSA ${fmt(pair.buried_surface_area_A2, 0)} Å²</span><span class="chip">${pair.n_contact_residue_pairs} contact pairs</span><span class="chip">${pair.n_hbond_like} polar</span><span class="chip">${pair.n_salt_bridges} salt</span></div>
       </article>`).join("")
     : '<p class="muted">Only one protein chain was found; no pairwise interface exists.</p>';
@@ -479,7 +680,7 @@ function selectPair(id) {
   $("pocket-job-status").textContent = "";
   $("pair-workspace").hidden = false;
   $("pocket-panel").hidden = false;
-  $("pair-title").textContent = `${pair.name_a} × ${pair.name_b}`;
+  $("pair-title").textContent = `${chainLabel(pair.chain_a)} × ${chainLabel(pair.chain_b)}`;
   $("pair-summary").textContent = `${pair.chain_a} · ${pair.chain_b}`;
   renderInterfacesActiveOnly();
   renderPair(pair);
@@ -517,8 +718,9 @@ function renderPair(pair) {
   $("contact-table").querySelectorAll(".focus-row").forEach((row) => bindSelectionRow(row, row.dataset.keys.split("|")));
 
   const pairChains = [pair.chain_a, pair.chain_b];
-  $("pocket-target").innerHTML = pairChains.map((chain) => `<option value="${esc(chain)}">${esc(chain)} (${esc(chain === pair.chain_a ? pair.name_a : pair.name_b)})</option>`).join("");
-  $("pocket-partner").innerHTML = pairChains.map((chain) => `<option value="${esc(chain)}">${esc(chain)} (${esc(chain === pair.chain_a ? pair.name_a : pair.name_b)})</option>`).join("");
+  const chainOptions = pairChains.map((chain) => `<option value="${esc(chain)}">${esc(chainLabel(chain))}</option>`).join("");
+  $("pocket-target").innerHTML = chainOptions;
+  $("pocket-partner").innerHTML = chainOptions;
   updateAnchors();
 }
 
@@ -656,7 +858,7 @@ function buildChainToggles(chains) {
       state.visibleChains[chain.id] = checkbox.checked;
       renderSurface();
     });
-    label.append(checkbox, ` ${chain.id} ${chain.name || `Chain ${chain.id}`}`);
+    label.append(checkbox, ` ${chainLabel(chain.id)}`);
     host.appendChild(label);
   }
 }
@@ -845,7 +1047,7 @@ function renderSurfaceStats() {
     const summary = scale.proteins[chain];
     const card = document.createElement("div");
     card.className = "surface-stat-card";
-    card.innerHTML = `<strong>${esc(summary.name || `Chain ${chain}`)} · whole resolved surface</strong><span>Area ${fmt(summary.area_A2)} Å²</span><span>Mean H ${esc(fmtH(summary.mean_H_Ainv))}</span><span>Convex ${esc(fmtPercent(summary.convex_fraction))} · concave ${esc(fmtPercent(summary.concave_fraction))}</span>`;
+    card.innerHTML = `<strong>${esc(chainLabel(chain))} · whole resolved surface</strong><span>Area ${fmt(summary.area_A2)} Å²</span><span>Mean H ${esc(fmtH(summary.mean_H_Ainv))}</span><span>Convex ${esc(fmtPercent(summary.convex_fraction))} · concave ${esc(fmtPercent(summary.concave_fraction))}</span>`;
     proteinHost.appendChild(card);
   }
   const pair = state.result?.pairs?.find((item) => item.id === state.pairId);
@@ -856,7 +1058,7 @@ function renderSurfaceStats() {
       if (!summary) continue;
       const card = document.createElement("div");
       card.className = "surface-stat-card interface-stat";
-      card.innerHTML = `<strong>${esc(summary.name || `Chain ${chain}`)} · interface face</strong><span>Patch area ${fmt(summary.area_A2)} Å²</span><span>Mean H ${esc(fmtH(summary.mean_H_Ainv))}</span><span>Convex ${esc(fmtPercent(summary.convex_fraction))} · concave ${esc(fmtPercent(summary.concave_fraction))}</span>`;
+      card.innerHTML = `<strong>${esc(chainLabel(chain))} · interface face</strong><span>Patch area ${fmt(summary.area_A2)} Å²</span><span>Mean H ${esc(fmtH(summary.mean_H_Ainv))}</span><span>Convex ${esc(fmtPercent(summary.convex_fraction))} · concave ${esc(fmtPercent(summary.concave_fraction))}</span>`;
       pairHost.appendChild(card);
     }
     const sideA = interfaceSummary[pair.chain_a];
@@ -988,7 +1190,7 @@ function selectedSummary() {
     const label = residueLabelFromKey(key);
     const whole = scale.proteins?.[part?.chain]?.residues?.find((item) => item.label === label);
     const patch = interfaceSurface(part?.chain)?.residues?.find((item) => item.label === label);
-    const name = scale.proteins?.[part?.chain]?.name || `Chain ${part?.chain || "?"}`;
+    const name = chainLabel(part?.chain);
     if (!whole) return `${name} ${label}: no surface vertices assigned`;
     return `${name} ${label}: whole H ${fmtH(whole.mean_H_Ainv)}, ${fmt(whole.area_A2)} Å²${patch ? `; interface H ${fmtH(patch.mean_H_Ainv)}, ${fmt(patch.area_A2)} Å²` : "; no selected interface patch"}`;
   }).join("  |  ");
@@ -1132,9 +1334,9 @@ function renderContactMap() {
   const rows = contactAxisLayout(data.rows, slice.rows);
   grid.style.gridTemplateColumns = `minmax(44px, max-content) 28px ${state.contact.sasa ? "12px" : "0px"} ${columns.tracks.join(" ") || "30px"}`;
   grid.style.gridTemplateRows = `82px 28px ${state.contact.sasa ? "12px" : "0px"} ${rows.tracks.join(" ") || "30px"}`;
-  grid.setAttribute("aria-label", `${data.row_name} by ${data.col_name} residue contact map`);
-  $("contact-col-axis").textContent = `${data.col_name} · chain ${data.col_chain} · columns →`;
-  $("contact-row-axis").textContent = `${data.row_name} · chain ${data.row_chain} · rows ↓`;
+  grid.setAttribute("aria-label", `${chainLabel(data.row_chain)} by ${chainLabel(data.col_chain)} residue contact map`);
+  $("contact-col-axis").textContent = `${chainLabel(data.col_chain)} · columns →`;
+  $("contact-row-axis").textContent = `${chainLabel(data.row_chain)} · rows ↓`;
   for (const row of rows.gaps) {
     const line = addGridElement(grid, "map-gap-line horizontal", "", 4, row, {"aria-hidden": "true"});
     line.style.gridColumn = `4 / span ${Math.max(1, columns.tracks.length)}`;
@@ -1378,7 +1580,7 @@ function focusSurfaceHit(pick) {
 
 function showSurfaceTip(hit, event) {
   const tip = $("surface-tip");
-  const name = curvatureScale()?.proteins?.[hit.chain]?.name || `Chain ${hit.chain}`;
+  const name = chainLabel(hit.chain);
   tip.textContent = `${name} · ${hit.label} · local H ${fmtH(hit.h)}`;
   tip.classList.add("on");
   tip.setAttribute("aria-hidden", "false");
@@ -1456,9 +1658,22 @@ $("upload-form").addEventListener("submit", submitUpload);
 $("pdb-form").addEventListener("submit", submitPdb);
 $("pocket-form").addEventListener("submit", submitPocket);
 $("pocket-target").addEventListener("change", updateAnchors);
-$("structure-file").addEventListener("change", (event) => { $("file-label").textContent = event.target.files[0]?.name || "Choose a PDB/mmCIF file"; });
+bindDropZone();
 $("pdb-id").addEventListener("blur", inspectPdb);
 $("refresh-history").addEventListener("click", refreshHistory);
+$("clear-history").addEventListener("click", clearHistory);
+$("drawer-toggle").addEventListener("click", () => {
+  if (overlayQuery.matches) closeDrawer();
+  else setDrawerCollapsed(!$("app-layout").classList.contains("drawer-collapsed"));
+});
+document.querySelectorAll(".drawer-open").forEach((button) => button.addEventListener("click", openDrawer));
+$("drawer-backdrop").addEventListener("click", () => closeDrawer());
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && document.body.classList.contains("drawer-open-state")) closeDrawer();
+});
+try { if (localStorage.getItem("drawerCollapsed") === "1") $("app-layout").classList.add("drawer-collapsed"); } catch (_) {}
+overlayQuery.addEventListener("change", syncDrawerMode);
+syncDrawerMode();
 $("interfaces-toggle").addEventListener("click", () => {
   const button = $("interfaces-toggle");
   const expanded = button.getAttribute("aria-expanded") === "true";
