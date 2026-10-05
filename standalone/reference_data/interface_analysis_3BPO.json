@@ -1,0 +1,1626 @@
+{
+  "AB": {
+    "name": "IL-13(A) - IL-4Ra(B)",
+    "bsa": 619.6500000000001,
+    "nhb": 9,
+    "nsb": 5,
+    "rows": [
+      {
+        "chain": "A",
+        "resid": 65,
+        "label": "R65",
+        "dSASA": 138.0,
+        "n": 77,
+        "tight": 24,
+        "min": 2.67,
+        "hb": 3,
+        "sb": 5,
+        "partners": [
+          "A71",
+          "D67",
+          "D72",
+          "F41",
+          "L39",
+          "V68",
+          "V69"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 12,
+        "label": "E12",
+        "dSASA": 103.5,
+        "n": 71,
+        "tight": 15,
+        "min": 2.77,
+        "hb": 4,
+        "sb": 0,
+        "partners": [
+          "A71",
+          "S70",
+          "V68",
+          "V69",
+          "Y127",
+          "Y13",
+          "Y183"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 41,
+        "label": "F41",
+        "dSASA": 100.6,
+        "n": 46,
+        "tight": 10,
+        "min": 3.16,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "E61",
+          "Q64",
+          "R65",
+          "S68"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 127,
+        "label": "Y127",
+        "dSASA": 90.4,
+        "n": 63,
+        "tight": 9,
+        "min": 3.15,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "E12",
+          "E15",
+          "R11",
+          "T8"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 69,
+        "label": "V69",
+        "dSASA": 70.1,
+        "n": 40,
+        "tight": 4,
+        "min": 3.58,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "E12",
+          "K62",
+          "M66",
+          "R65"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 8,
+        "label": "T8",
+        "dSASA": 64.2,
+        "n": 31,
+        "tight": 8,
+        "min": 2.68,
+        "hb": 1,
+        "sb": 0,
+        "partners": [
+          "C182",
+          "Y127",
+          "Y183"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 71,
+        "label": "A71",
+        "dSASA": 52.1,
+        "n": 14,
+        "tight": 3,
+        "min": 3.24,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "E12",
+          "G69",
+          "M66",
+          "R65",
+          "S68"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 15,
+        "label": "E15",
+        "dSASA": 46.8,
+        "n": 22,
+        "tight": 6,
+        "min": 3.46,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "H131",
+          "N130",
+          "Y127"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 3,
+        "label": "P3",
+        "dSASA": 44.0,
+        "n": 6,
+        "tight": 0,
+        "min": 4.31,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "E94",
+          "N184"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 183,
+        "label": "Y183",
+        "dSASA": 43.2,
+        "n": 30,
+        "tight": 6,
+        "min": 2.84,
+        "hb": 1,
+        "sb": 0,
+        "partners": [
+          "E12",
+          "P5",
+          "T8",
+          "V4"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 182,
+        "label": "C182",
+        "dSASA": 43.1,
+        "n": 20,
+        "tight": 6,
+        "min": 2.68,
+        "hb": 1,
+        "sb": 0,
+        "partners": [
+          "P5",
+          "T8"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 70,
+        "label": "S70",
+        "dSASA": 37.2,
+        "n": 15,
+        "tight": 5,
+        "min": 2.77,
+        "hb": 1,
+        "sb": 0,
+        "partners": [
+          "A9",
+          "E12"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 4,
+        "label": "V4",
+        "dSASA": 34.7,
+        "n": 5,
+        "tight": 0,
+        "min": 4.32,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "S93",
+          "Y183"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 11,
+        "label": "R11",
+        "dSASA": 32.7,
+        "n": 26,
+        "tight": 8,
+        "min": 3.0,
+        "hb": 1,
+        "sb": 0,
+        "partners": [
+          "H131",
+          "Y127"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 5,
+        "label": "P5",
+        "dSASA": 32.2,
+        "n": 16,
+        "tight": 2,
+        "min": 3.32,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "C182",
+          "N184",
+          "Q181",
+          "Y183"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 67,
+        "label": "D67",
+        "dSASA": 31.5,
+        "n": 6,
+        "tight": 1,
+        "min": 3.11,
+        "hb": 1,
+        "sb": 1,
+        "partners": [
+          "R65"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 94,
+        "label": "E94",
+        "dSASA": 28.7,
+        "n": 4,
+        "tight": 0,
+        "min": 4.31,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "P3"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 131,
+        "label": "H131",
+        "dSASA": 28.1,
+        "n": 14,
+        "tight": 5,
+        "min": 3.0,
+        "hb": 1,
+        "sb": 0,
+        "partners": [
+          "E15",
+          "R11"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 66,
+        "label": "M66",
+        "dSASA": 26.4,
+        "n": 15,
+        "tight": 1,
+        "min": 3.58,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "A71",
+          "V69"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 184,
+        "label": "N184",
+        "dSASA": 23.3,
+        "n": 4,
+        "tight": 0,
+        "min": 4.44,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "P3",
+          "P5"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 72,
+        "label": "D72",
+        "dSASA": 21.1,
+        "n": 18,
+        "tight": 10,
+        "min": 2.67,
+        "hb": 2,
+        "sb": 4,
+        "partners": [
+          "R65"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 9,
+        "label": "A9",
+        "dSASA": 20.4,
+        "n": 4,
+        "tight": 0,
+        "min": 4.22,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "S70"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 61,
+        "label": "E61",
+        "dSASA": 20.0,
+        "n": 6,
+        "tight": 0,
+        "min": 4.24,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "F41"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 62,
+        "label": "K62",
+        "dSASA": 19.3,
+        "n": 6,
+        "tight": 0,
+        "min": 4.11,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "V69"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 69,
+        "label": "G69",
+        "dSASA": 15.0,
+        "n": 4,
+        "tight": 2,
+        "min": 3.54,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "A71"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 64,
+        "label": "Q64",
+        "dSASA": 14.8,
+        "n": 8,
+        "tight": 0,
+        "min": 4.17,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "F41"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 68,
+        "label": "S68",
+        "dSASA": 12.5,
+        "n": 5,
+        "tight": 0,
+        "min": 4.43,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "A71",
+          "F41"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 39,
+        "label": "L39",
+        "dSASA": 12.0,
+        "n": 9,
+        "tight": 2,
+        "min": 3.64,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "R65"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 130,
+        "label": "N130",
+        "dSASA": 10.7,
+        "n": 1,
+        "tight": 0,
+        "min": 4.64,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "E15"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 93,
+        "label": "S93",
+        "dSASA": 9.5,
+        "n": 1,
+        "tight": 0,
+        "min": 4.97,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "V4"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 181,
+        "label": "Q181",
+        "dSASA": 6.3,
+        "n": 1,
+        "tight": 0,
+        "min": 4.6,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "P5"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 13,
+        "label": "Y13",
+        "dSASA": 5.1,
+        "n": 12,
+        "tight": 5,
+        "min": 2.84,
+        "hb": 2,
+        "sb": 0,
+        "partners": [
+          "E12"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 68,
+        "label": "V68",
+        "dSASA": 1.8,
+        "n": 4,
+        "tight": 0,
+        "min": 4.56,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "E12",
+          "R65"
+        ]
+      }
+    ]
+  },
+  "AC": {
+    "name": "IL-13(A) - IL-13Ra1(C)",
+    "bsa": 746.9999999999998,
+    "nhb": 12,
+    "nsb": 1,
+    "rows": [
+      {
+        "chain": "C",
+        "resid": 319,
+        "label": "L319",
+        "dSASA": 108.9,
+        "n": 46,
+        "tight": 11,
+        "min": 3.44,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "E15",
+          "F107",
+          "I14",
+          "K104",
+          "R11"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 108,
+        "label": "R108",
+        "dSASA": 101.6,
+        "n": 63,
+        "tight": 16,
+        "min": 2.64,
+        "hb": 2,
+        "sb": 0,
+        "partners": [
+          "C257",
+          "C320",
+          "I254",
+          "R256",
+          "T223",
+          "Y321"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 76,
+        "label": "K76",
+        "dSASA": 88.3,
+        "n": 52,
+        "tight": 19,
+        "min": 2.74,
+        "hb": 3,
+        "sb": 1,
+        "partners": [
+          "E91",
+          "G31",
+          "I90",
+          "K89",
+          "M33",
+          "N30"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 256,
+        "label": "R256",
+        "dSASA": 81.7,
+        "n": 48,
+        "tight": 18,
+        "min": 2.7,
+        "hb": 3,
+        "sb": 0,
+        "partners": [
+          "E109",
+          "F107",
+          "G110",
+          "R108",
+          "R11"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 78,
+        "label": "I78",
+        "dSASA": 79.5,
+        "n": 45,
+        "tight": 12,
+        "min": 2.97,
+        "hb": 2,
+        "sb": 0,
+        "partners": [
+          "D87",
+          "K89",
+          "M33",
+          "T88"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 104,
+        "label": "K104",
+        "dSASA": 74.3,
+        "n": 48,
+        "tight": 4,
+        "min": 3.03,
+        "hb": 2,
+        "sb": 0,
+        "partners": [
+          "C320",
+          "E322",
+          "K318",
+          "L319",
+          "T223",
+          "Y321"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 107,
+        "label": "F107",
+        "dSASA": 74.0,
+        "n": 46,
+        "tight": 15,
+        "min": 2.84,
+        "hb": 1,
+        "sb": 0,
+        "partners": [
+          "C320",
+          "L319",
+          "R256"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 91,
+        "label": "E91",
+        "dSASA": 68.7,
+        "n": 46,
+        "tight": 18,
+        "min": 2.74,
+        "hb": 3,
+        "sb": 1,
+        "partners": [
+          "D75",
+          "K76",
+          "Q74"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 11,
+        "label": "R11",
+        "dSASA": 65.3,
+        "n": 20,
+        "tight": 5,
+        "min": 3.44,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "L319",
+          "Q278",
+          "R256"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 87,
+        "label": "D87",
+        "dSASA": 62.5,
+        "n": 24,
+        "tight": 5,
+        "min": 3.56,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "A79",
+          "E81",
+          "I78",
+          "P80",
+          "W65"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 320,
+        "label": "C320",
+        "dSASA": 62.4,
+        "n": 53,
+        "tight": 9,
+        "min": 2.64,
+        "hb": 1,
+        "sb": 0,
+        "partners": [
+          "F107",
+          "K104",
+          "R108"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 89,
+        "label": "K89",
+        "dSASA": 56.9,
+        "n": 42,
+        "tight": 9,
+        "min": 2.97,
+        "hb": 2,
+        "sb": 0,
+        "partners": [
+          "I78",
+          "K76",
+          "K77"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 318,
+        "label": "K318",
+        "dSASA": 55.0,
+        "n": 14,
+        "tight": 3,
+        "min": 3.03,
+        "hb": 1,
+        "sb": 0,
+        "partners": [
+          "I14",
+          "K104",
+          "V18"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 33,
+        "label": "M33",
+        "dSASA": 45.3,
+        "n": 13,
+        "tight": 3,
+        "min": 3.58,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "F67",
+          "I78",
+          "K76"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 88,
+        "label": "T88",
+        "dSASA": 43.1,
+        "n": 20,
+        "tight": 4,
+        "min": 3.55,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "A79",
+          "E81",
+          "I78",
+          "K77",
+          "P80"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 77,
+        "label": "K77",
+        "dSASA": 41.3,
+        "n": 16,
+        "tight": 1,
+        "min": 3.93,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "I90",
+          "K89",
+          "T88"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 18,
+        "label": "V18",
+        "dSASA": 32.3,
+        "n": 6,
+        "tight": 1,
+        "min": 4.0,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "K318"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 223,
+        "label": "T223",
+        "dSASA": 29.8,
+        "n": 2,
+        "tight": 0,
+        "min": 4.53,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "K104",
+          "R108"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 90,
+        "label": "I90",
+        "dSASA": 27.8,
+        "n": 9,
+        "tight": 0,
+        "min": 4.14,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "K76",
+          "K77"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 321,
+        "label": "Y321",
+        "dSASA": 25.7,
+        "n": 28,
+        "tight": 5,
+        "min": 3.11,
+        "hb": 1,
+        "sb": 0,
+        "partners": [
+          "K104",
+          "R108"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 278,
+        "label": "Q278",
+        "dSASA": 24.4,
+        "n": 6,
+        "tight": 0,
+        "min": 4.1,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "R11"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 65,
+        "label": "W65",
+        "dSASA": 23.5,
+        "n": 7,
+        "tight": 1,
+        "min": 3.79,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "D87",
+          "R86"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 80,
+        "label": "P80",
+        "dSASA": 22.9,
+        "n": 11,
+        "tight": 3,
+        "min": 3.56,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "D87",
+          "T88"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 14,
+        "label": "I14",
+        "dSASA": 21.0,
+        "n": 8,
+        "tight": 1,
+        "min": 3.77,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "K318",
+          "L319"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 81,
+        "label": "E81",
+        "dSASA": 20.1,
+        "n": 9,
+        "tight": 1,
+        "min": 3.94,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "D87",
+          "T88"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 15,
+        "label": "E15",
+        "dSASA": 18.8,
+        "n": 5,
+        "tight": 1,
+        "min": 3.81,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "L319"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 94,
+        "label": "Q94",
+        "dSASA": 18.8,
+        "n": 3,
+        "tight": 0,
+        "min": 4.5,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "D75"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 75,
+        "label": "D75",
+        "dSASA": 18.3,
+        "n": 8,
+        "tight": 0,
+        "min": 4.23,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "E91",
+          "Q94"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 110,
+        "label": "G110",
+        "dSASA": 16.5,
+        "n": 8,
+        "tight": 4,
+        "min": 3.05,
+        "hb": 1,
+        "sb": 0,
+        "partners": [
+          "R256"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 74,
+        "label": "Q74",
+        "dSASA": 16.1,
+        "n": 8,
+        "tight": 4,
+        "min": 2.83,
+        "hb": 1,
+        "sb": 0,
+        "partners": [
+          "E91"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 322,
+        "label": "E322",
+        "dSASA": 15.4,
+        "n": 4,
+        "tight": 0,
+        "min": 4.15,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "K104"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 86,
+        "label": "R86",
+        "dSASA": 10.1,
+        "n": 2,
+        "tight": 0,
+        "min": 4.86,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "W65"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 67,
+        "label": "F67",
+        "dSASA": 9.1,
+        "n": 1,
+        "tight": 0,
+        "min": 4.62,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "M33"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 257,
+        "label": "C257",
+        "dSASA": 9.0,
+        "n": 4,
+        "tight": 1,
+        "min": 3.77,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "R108"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 254,
+        "label": "I254",
+        "dSASA": 8.9,
+        "n": 4,
+        "tight": 1,
+        "min": 3.72,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "R108"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 79,
+        "label": "A79",
+        "dSASA": 7.5,
+        "n": 7,
+        "tight": 1,
+        "min": 3.72,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "D87",
+          "T88"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 31,
+        "label": "G31",
+        "dSASA": 5.9,
+        "n": 4,
+        "tight": 3,
+        "min": 3.23,
+        "hb": 1,
+        "sb": 0,
+        "partners": [
+          "K76"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 30,
+        "label": "N30",
+        "dSASA": 2.8,
+        "n": 1,
+        "tight": 0,
+        "min": 4.87,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "K76"
+        ]
+      },
+      {
+        "chain": "A",
+        "resid": 109,
+        "label": "E109",
+        "dSASA": 0.5,
+        "n": 5,
+        "tight": 1,
+        "min": 3.76,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "R256"
+        ]
+      }
+    ]
+  },
+  "BC": {
+    "name": "IL-4Ra(B) - IL-13Ra1(C)",
+    "bsa": 542.7999999999998,
+    "nhb": 1,
+    "nsb": 0,
+    "rows": [
+      {
+        "chain": "B",
+        "resid": 154,
+        "label": "Y154",
+        "dSASA": 93.9,
+        "n": 62,
+        "tight": 15,
+        "min": 3.43,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "F275",
+          "F297",
+          "P300",
+          "V277",
+          "Y276"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 300,
+        "label": "P300",
+        "dSASA": 72.4,
+        "n": 30,
+        "tight": 3,
+        "min": 3.16,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "L159",
+          "Q151",
+          "R160",
+          "V152",
+          "Y150",
+          "Y154"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 155,
+        "label": "L155",
+        "dSASA": 66.5,
+        "n": 32,
+        "tight": 8,
+        "min": 2.94,
+        "hb": 1,
+        "sb": 0,
+        "partners": [
+          "F259",
+          "Q278",
+          "V277",
+          "Y276"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 278,
+        "label": "Q278",
+        "dSASA": 66.3,
+        "n": 19,
+        "tight": 4,
+        "min": 3.68,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "H131",
+          "L155",
+          "N130",
+          "T153"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 160,
+        "label": "R160",
+        "dSASA": 64.2,
+        "n": 19,
+        "tight": 6,
+        "min": 3.3,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "G301",
+          "N273",
+          "P300",
+          "T271"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 301,
+        "label": "G301",
+        "dSASA": 58.1,
+        "n": 21,
+        "tight": 4,
+        "min": 3.75,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "A162",
+          "I161",
+          "L159",
+          "R160",
+          "Y150"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 153,
+        "label": "T153",
+        "dSASA": 50.2,
+        "n": 14,
+        "tight": 1,
+        "min": 3.98,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "E279",
+          "F297",
+          "Q278",
+          "V277",
+          "Y276"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 276,
+        "label": "Y276",
+        "dSASA": 47.4,
+        "n": 30,
+        "tight": 8,
+        "min": 2.94,
+        "hb": 1,
+        "sb": 0,
+        "partners": [
+          "L155",
+          "T153",
+          "Y154"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 151,
+        "label": "Q151",
+        "dSASA": 44.9,
+        "n": 16,
+        "tight": 4,
+        "min": 3.16,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "M298",
+          "P300"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 303,
+        "label": "L303",
+        "dSASA": 41.8,
+        "n": 6,
+        "tight": 2,
+        "min": 3.55,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "A162",
+          "S164"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 275,
+        "label": "F275",
+        "dSASA": 38.7,
+        "n": 28,
+        "tight": 11,
+        "min": 3.44,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "Y154"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 279,
+        "label": "E279",
+        "dSASA": 36.8,
+        "n": 3,
+        "tight": 0,
+        "min": 4.31,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "C182",
+          "Q181",
+          "T153"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 273,
+        "label": "N273",
+        "dSASA": 35.3,
+        "n": 13,
+        "tight": 5,
+        "min": 3.3,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "R160"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 150,
+        "label": "Y150",
+        "dSASA": 32.9,
+        "n": 11,
+        "tight": 3,
+        "min": 3.83,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "G301",
+          "P300"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 298,
+        "label": "M298",
+        "dSASA": 31.7,
+        "n": 7,
+        "tight": 1,
+        "min": 3.64,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "Q151"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 297,
+        "label": "F297",
+        "dSASA": 31.4,
+        "n": 19,
+        "tight": 1,
+        "min": 3.56,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "T153",
+          "Y154"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 148,
+        "label": "R148",
+        "dSASA": 30.4,
+        "n": 6,
+        "tight": 1,
+        "min": 3.87,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "D241",
+          "N240"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 181,
+        "label": "Q181",
+        "dSASA": 29.4,
+        "n": 3,
+        "tight": 0,
+        "min": 4.38,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "E279",
+          "K281"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 130,
+        "label": "N130",
+        "dSASA": 26.5,
+        "n": 10,
+        "tight": 2,
+        "min": 3.68,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "Q278"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 162,
+        "label": "A162",
+        "dSASA": 23.6,
+        "n": 4,
+        "tight": 1,
+        "min": 3.91,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "G301",
+          "L303"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 271,
+        "label": "T271",
+        "dSASA": 21.3,
+        "n": 1,
+        "tight": 0,
+        "min": 4.38,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "R160"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 241,
+        "label": "D241",
+        "dSASA": 17.6,
+        "n": 3,
+        "tight": 1,
+        "min": 3.87,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "R148"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 281,
+        "label": "K281",
+        "dSASA": 17.1,
+        "n": 2,
+        "tight": 0,
+        "min": 4.59,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "Q181"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 131,
+        "label": "H131",
+        "dSASA": 16.9,
+        "n": 4,
+        "tight": 0,
+        "min": 4.69,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "Q278"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 277,
+        "label": "V277",
+        "dSASA": 15.3,
+        "n": 12,
+        "tight": 1,
+        "min": 3.98,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "L155",
+          "T153",
+          "Y154"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 159,
+        "label": "L159",
+        "dSASA": 15.1,
+        "n": 5,
+        "tight": 0,
+        "min": 4.18,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "G301",
+          "P300"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 164,
+        "label": "S164",
+        "dSASA": 15.1,
+        "n": 3,
+        "tight": 1,
+        "min": 3.55,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "L303"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 259,
+        "label": "F259",
+        "dSASA": 14.2,
+        "n": 6,
+        "tight": 1,
+        "min": 3.69,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "L155"
+        ]
+      },
+      {
+        "chain": "C",
+        "resid": 240,
+        "label": "N240",
+        "dSASA": 12.1,
+        "n": 3,
+        "tight": 0,
+        "min": 4.27,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "R148"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 161,
+        "label": "I161",
+        "dSASA": 10.4,
+        "n": 10,
+        "tight": 0,
+        "min": 4.06,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "G301"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 182,
+        "label": "C182",
+        "dSASA": 7.1,
+        "n": 1,
+        "tight": 0,
+        "min": 4.99,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "E279"
+        ]
+      },
+      {
+        "chain": "B",
+        "resid": 152,
+        "label": "V152",
+        "dSASA": 1.0,
+        "n": 3,
+        "tight": 0,
+        "min": 4.81,
+        "hb": 0,
+        "sb": 0,
+        "partners": [
+          "P300"
+        ]
+      }
+    ]
+  }
+}

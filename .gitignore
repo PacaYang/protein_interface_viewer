@@ -1,0 +1,35 @@
+# Python environments and generated files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+*.egg-info/
+build/
+dist/
+
+# Local app history, uploaded coordinates, and calculation artifacts
+.interface_app_data/
+/data/
+/outputs/
+/artifacts/
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+
+# Packaged standalone renderings are reproducible reference outputs
+/standalone/reference_results/
+
+# Machine-specific configuration
+.env
+.env.*
+!.env.example
+.DS_Store
+.idea/
+.vscode/
+*.log

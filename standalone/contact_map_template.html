@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<!--
+  Template for contact_map.py. Pair data, whole-protein Zernike meshes, PDB and NGL are inlined
+  at generation time, so the combined page opens under file:// without fetches.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__PAGE_TITLE__ | surface convexity and contact maps</title>
+<style>
+  /* ---------------------------------------------------------------------------
+     Palette. Every value is a documented step; both modes were validated with
+     validate_palette.js against their own surface.
+
+       distance -> sequential blue, 5 bins, --ordinal PASS in both modes
+                   (dark is a re-selected step set with the anchor flipped,
+                   not an automatic inversion of the light ramp)
+       charge   -> diverging orange/aqua + neutral gray midpoint. Blue is spent
+                   on distance, so the documented blue<->red pair is unavailable;
+                   orange<->aqua is warm/cool, PASS in both modes (worst
+                   all-pairs CVD dE 9.2 light / 9.4 dark, normal-vision 27.6 /
+                   26.5). Light aqua sits at 2.74:1 -> WARN, relieved by the
+                   visible +/- labels and the table view below the chart.
+       AA class -> no hue. A monochrome shape, because no 5-hue set from the
+                   documented palette clears the all-pairs floors in both modes
+                   alongside the blue ramp.
+     --------------------------------------------------------------------------- */
+  .viz-root {
+    color-scheme: light;
+    --surface-1:   #fcfcfb;
+    --surface-2:   #f4f4f1;   /* empty cell: the lattice, one step off surface */
+    --page:        #f9f9f7;
+    --text-1:      #0b0b0b;
+    --text-2:      #52514e;
+    --muted:       #898781;
+    --gridline:    #e1e0d9;
+    --axis:        #c3c2b7;
+    --ring:        rgba(11, 11, 11, 0.10);
+
+    --d0: #0d366b; --d1: #184f95; --d2: #256abf; --d3: #3987e5; --d4: #86b6ef;
+    --pos: #eb6834; --neg: #1baf7a; --neutral: #e1e0d9;
+    --focus: #2a78d6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --surface-2: #232322; --page: #0d0d0d;
+      --text-1: #ffffff; --text-2: #c3c2b7; --muted: #898781;
+      --gridline: #2c2c2a; --axis: #383835; --ring: rgba(255, 255, 255, 0.10);
+      --d0: #cde2fb; --d1: #86b6ef; --d2: #3987e5; --d3: #256abf; --d4: #184f95;
+      --pos: #d95926; --neg: #199e70; --neutral: #2c2c2a;
+      --focus: #3987e5;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --surface-2: #232322; --page: #0d0d0d;
+    --text-1: #ffffff; --text-2: #c3c2b7; --muted: #898781;
+    --gridline: #2c2c2a; --axis: #383835; --ring: rgba(255, 255, 255, 0.10);
+    --d0: #cde2fb; --d1: #86b6ef; --d2: #3987e5; --d3: #256abf; --d4: #184f95;
+    --pos: #d95926; --neg: #199e70; --neutral: #2c2c2a;
+    --focus: #3987e5;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--text-1);
+  }
+  .viz-root {
+    background: var(--page);
+    color: var(--text-1);
+    padding: 28px 32px 64px;
+    max-width: 1500px;
+    margin: 0 auto;
+  }
+
+  h1 { font-size: 19px; font-weight: 600; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { font-size: 13px; color: var(--text-2); margin: 0 0 2px; line-height: 1.5; }
+  .meta { font-size: 12px; color: var(--muted); margin: 0 0 20px; }
+
+  /* --- filter row: one row, above everything it scopes ---------------------- */
+  .filters {
+    display: flex; flex-wrap: wrap; align-items: flex-end; gap: 18px;
+    padding: 14px 16px; margin-bottom: 22px;
+    background: var(--surface-1);
+    border: 1px solid var(--ring); border-radius: 8px;
+  }
+  .fgroup { display: flex; flex-direction: column; gap: 6px; }
+  .fgroup > span {
+    font-size: 11px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .seg { display: flex; gap: 2px; }
+  .seg button {
+    font: inherit; font-size: 12px; padding: 6px 11px;
+    background: var(--surface-1); color: var(--text-2);
+    border: 1px solid var(--axis); border-radius: 5px; cursor: pointer;
+    font-variant-numeric: tabular-nums;
+  }
+  .seg button:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .seg button:last-child { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+  .seg button:not(:first-child):not(:last-child) { border-radius: 0; }
+  .seg button[aria-pressed="true"] {
+    background: var(--text-1); color: var(--surface-1); border-color: var(--text-1);
+    font-weight: 600;
+  }
+  .seg button:hover:not([aria-pressed="true"]) { background: var(--surface-2); }
+  .filters select, .filters .toggle {
+    font: inherit; font-size: 12px; padding: 6px 9px;
+    background: var(--surface-1); color: var(--text-1);
+    border: 1px solid var(--axis); border-radius: 5px;
+  }
+  .toggle { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+  .toggle input { margin: 0; accent-color: var(--focus); }
+  .count { font-size: 12px; color: var(--text-2); margin-left: auto; padding-bottom: 7px; }
+  .count b { color: var(--text-1); font-variant-numeric: tabular-nums; }
+
+  /* --- chart card ---------------------------------------------------------- */
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--ring); border-radius: 8px;
+    padding: 20px 22px 22px; margin-bottom: 26px;
+    overflow-x: auto;
+  }
+  .axis-title { font-size: 12px; font-weight: 600; color: var(--text-2); }
+  .axis-title .chain { color: var(--muted); font-weight: 400; }
+
+  #grid {
+    display: grid;
+    gap: 2px;                       /* the surface gap does the separating */
+    --cell: 30px; --lane: 13px; --gut: 20px; --gap: 7px;
+    margin-top: 6px;
+  }
+  #grid > * { position: relative; }
+
+  .clabel, .rlabel {
+    font-size: 10.5px; color: var(--text-2); font-variant-numeric: tabular-nums;
+    display: flex; align-items: center; white-space: nowrap;
+  }
+  .clabel {
+    writing-mode: vertical-rl; transform: rotate(180deg);
+    justify-content: flex-start; padding-bottom: 3px; height: 74px;
+  }
+  .rlabel { justify-content: flex-end; padding-right: 5px; }
+  .clabel.on, .rlabel.on { color: var(--text-1); font-weight: 600; }
+
+  .lane {
+    border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; line-height: 1; color: var(--text-2);
+  }
+  .lane.q-pos { background: var(--pos); color: #ffffff; }
+  .lane.q-neg { background: var(--neg); color: #ffffff; }
+  .lane.q-0   { background: var(--neutral); color: var(--text-2); }
+
+  .sasa { border-radius: 3px; background: var(--text-1); }
+  .sasa.none {
+    background: transparent;
+    box-shadow: inset 0 0 0 1px var(--axis);   /* unknown, not a measured zero */
+  }
+
+  .cell {
+    border-radius: 4px; background: var(--surface-2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9.5px; font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+    color: transparent; cursor: default;
+  }
+  .cell.hit { cursor: pointer; }
+  .cell.b0 { background: var(--d0); } .cell.b1 { background: var(--d1); }
+  .cell.b2 { background: var(--d2); } .cell.b3 { background: var(--d3); }
+  .cell.b4 { background: var(--d4); }
+  .cell.ink-light { color: #ffffff; } .cell.ink-dark { color: #0b0b0b; }
+  #grid.novals .cell { color: transparent !important; }
+  .cell.hit:hover, .cell.hit.act { outline: 2px solid var(--text-1); outline-offset: 1px; }
+  .cell:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; z-index: 3; }
+
+  /* pairwise charge badge, corner-set with a surface ring so it reads on any bin */
+  .badge {
+    position: absolute; top: -3px; right: -3px;
+    width: 12px; height: 12px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; line-height: 1;
+    border: 2px solid var(--surface-1);
+  }
+  .badge.salt { background: var(--pos); color: #ffffff; }
+  .badge.like { background: var(--neg); color: #ffffff; }
+
+  /* Sequence discontinuity: a real spacer track carrying one recessive hairline.
+     Done with grid tracks rather than a margin on the cells -- a margin inside a
+     fixed 30px track shrinks the cell to 21px, which both crops the value and
+     drops the hit target below the 24px minimum. */
+  .gapline { background: var(--gridline); }
+  /* In grid, justify-self is the column axis and align-self the row axis. */
+  .gapline.v { width: 1px; justify-self: center; align-self: stretch; }
+  .gapline.h { height: 1px; align-self: center; justify-self: stretch; }
+
+  .bracket { display: flex; align-items: center; justify-content: center; }
+  .bracket span {
+    font-size: 9px; color: var(--muted); white-space: nowrap;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .bracket.v {
+    border-left: 1px solid var(--axis); border-radius: 2px 0 0 2px;
+    margin: 1px 4px 1px 0; overflow: hidden;
+  }
+  .bracket.v span {
+    writing-mode: vertical-rl; transform: rotate(180deg);
+    max-height: 100%; overflow: hidden;
+  }
+  .bracket.h {
+    border-bottom: 1px solid var(--axis); border-radius: 0 0 2px 2px;
+    margin: 0 0 4px; align-items: flex-end; padding-bottom: 2px;
+    overflow: hidden;
+  }
+  .bracket.h span { max-width: 100%; overflow: hidden; }
+
+  /* --- legends ------------------------------------------------------------- */
+  .legends {
+    display: flex; flex-wrap: wrap; gap: 26px 34px;
+    margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--gridline);
+  }
+  .leg h3 {
+    font-size: 11px; font-weight: 600; color: var(--muted); margin: 0 0 8px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .ramp { display: flex; align-items: flex-start; gap: 2px; }
+  .ramp div { text-align: center; }
+  .ramp i {
+    display: block; width: 46px; height: 13px; border-radius: 3px;
+  }
+  .ramp small {
+    display: block; font-size: 9.5px; color: var(--text-2); margin-top: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  .keys { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+  .key { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--text-2); }
+  .key i {
+    width: 13px; height: 13px; border-radius: 3px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; color: #ffffff;
+  }
+  .key i.shape { background: var(--neutral); color: var(--text-2); }
+  .key i.dot { border-radius: 50%; }
+  .key i.hollow { background: transparent; box-shadow: inset 0 0 0 1px var(--axis); }
+
+  /* --- tooltip ------------------------------------------------------------- */
+  #tip {
+    position: fixed; z-index: 40; pointer-events: none; opacity: 0;
+    transition: opacity .08s linear;
+    background: var(--surface-1); color: var(--text-1);
+    border: 1px solid var(--ring); border-radius: 8px;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, .16);
+    padding: 12px 14px; min-width: 218px; max-width: 320px;
+    font-size: 12px; line-height: 1.5;
+  }
+  #tip.on { opacity: 1; }
+  #tip .val {
+    font-size: 22px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1;
+  }
+  #tip .val small { font-size: 12px; font-weight: 400; color: var(--text-2); }
+  #tip .pairline {
+    display: flex; align-items: center; gap: 7px; margin-top: 9px;
+    font-weight: 600; font-size: 13px;
+  }
+  #tip .pairline i {
+    width: 11px; height: 11px; border-radius: 3px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px; font-weight: 700; color: #ffffff;
+  }
+  #tip .who { color: var(--text-2); font-weight: 400; font-size: 11px; }
+  #tip dl {
+    margin: 10px 0 0; padding-top: 9px; border-top: 1px solid var(--gridline);
+    display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 11.5px;
+  }
+  #tip dt { color: var(--text-2); }
+  #tip dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* --- table view: the twin, not a fallback -------------------------------- */
+  .tablecard {
+    background: var(--surface-1); border: 1px solid var(--ring); border-radius: 8px;
+    padding: 18px 22px 22px;
+  }
+  .interface-card { margin-bottom: 26px; }
+  .tablecard h2 { font-size: 14px; font-weight: 600; margin: 0 0 3px; }
+  .tablecard h3 { font-size: 13px; margin: 22px 0 8px; }
+  .tablecard p { font-size: 12px; color: var(--text-2); margin: 0 0 14px; }
+  .scroll { max-height: 460px; overflow: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 11.5px; }
+  th, td {
+    text-align: right; padding: 5px 9px; white-space: nowrap;
+    border-bottom: 1px solid var(--gridline);
+  }
+  th {
+    position: sticky; top: 0; background: var(--surface-1);
+    font-size: 10px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.04em; text-align: right;
+    border-bottom: 1px solid var(--axis);
+  }
+  th:first-child, td:first-child, th.l, td.l { text-align: left; }
+  td { color: var(--text-2); font-variant-numeric: tabular-nums; }
+  td.res { color: var(--text-1); font-weight: 600; }
+  tbody tr:hover td { background: var(--surface-2); }
+  tbody tr.pick td { background: var(--surface-2); color: var(--text-1); }
+  .note { font-size: 11.5px; color: var(--muted); margin-top: 16px; line-height: 1.6; }
+
+  .surface-card {
+    background: var(--surface-1); border: 1px solid var(--ring); border-radius: 8px;
+    padding: 20px 22px 22px; margin-bottom: 26px;
+  }
+  .surface-card h2 { font-size: 16px; margin: 0 0 5px; }
+  .surface-card h3 { font-size: 13px; margin: 22px 0 8px; }
+  .surface-card p { color: var(--text-2); font-size: 12px; line-height: 1.55; }
+  .surface-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12px; }
+  .surface-controls input { width: 180px; accent-color: var(--focus); }
+  .surface-controls select { background: var(--surface-1); color: var(--text-1); border: 1px solid var(--ring); border-radius: 5px; padding: 5px; }
+  #surface-tip { position: fixed; z-index: 50; display: none; pointer-events: none;
+    padding: 8px 10px; border: 1px solid var(--ring); border-radius: 6px;
+    background: var(--surface-1); color: var(--text-1); box-shadow: 0 6px 18px rgba(0,0,0,.16);
+    font-size: 12px; line-height: 1.45; white-space: nowrap; }
+  #surface-tip.on { display: block; }
+  .background-swatch { display: inline-block; width: 13px; height: 13px; background: #9da4ac;
+    border: 1px solid var(--ring); vertical-align: -2px; margin-left: 8px; }
+  .chain-toggles { display: flex; gap: 10px; flex-wrap: wrap; }
+  .chain-toggles label { white-space: nowrap; }
+  #surface-view canvas { display: block; }
+  .surface-colorbar { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-2); }
+  .surface-colorbar .bar { width: 180px; height: 13px; background: linear-gradient(90deg,#8e0d13,#ef6a61,#f4f4f1,#74add1,#2166ac); border: 1px solid var(--ring); }
+  .stats-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; margin-top: 16px; }
+  .stat-card { border: 1px solid var(--gridline); border-radius: 6px; padding: 10px 12px; min-width: 0; }
+  .stat-card strong { display: block; font-size: 12px; margin-bottom: 5px; }
+  .stat-card span { display: block; font-size: 11.5px; color: var(--text-2); line-height: 1.5; }
+  #surface-view { width: 100%; height: 570px; margin-top: 8px; }
+  .curvature-key { display: inline-block; width: 110px; height: 10px; vertical-align: middle;
+    border-radius: 3px; background: linear-gradient(90deg,#8e0d13,#ef6a61,#f4f4f1,#74add1,#2166ac); }
+  #curvature-table tbody tr, #residue-tbody tr { cursor: pointer; }
+  .cell.selected { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .rlabel.selected, .clabel.selected { color: var(--text-1); font-weight: 700; }
+  @media (max-width: 720px) {
+    .viz-root { padding: 16px 12px 40px; }
+    .stats-grid { grid-template-columns: 1fr; }
+    #surface-view { height: 430px; }
+  }
+
+  @media print {
+    .filters, #tip { display: none; }
+    .card { overflow: visible; }
+    .scroll { max-height: none; }
+  }
+
+  /* Forced colors strips the fills, so distance and charge lose their channel.
+     The backup is the ordered 45/135-degree texture: rotation steps with the
+     distance bin, and the two charge poles take opposite arms. Never on by
+     default -- only where hue has already failed. */
+  @media (forced-colors: active) {
+    .cell.hit {
+      forced-color-adjust: none;
+      background: Canvas; color: CanvasText;
+      border: 1px solid CanvasText;
+    }
+    .cell.b0 { background: repeating-linear-gradient(45deg,  CanvasText 0 3px, Canvas 3px 5px); }
+    .cell.b1 { background: repeating-linear-gradient(45deg,  CanvasText 0 2px, Canvas 2px 6px); }
+    .cell.b2 { background: repeating-linear-gradient(45deg,  CanvasText 0 1px, Canvas 1px 7px); }
+    .cell.b3 { background: repeating-linear-gradient(135deg, CanvasText 0 1px, Canvas 1px 8px); }
+    .cell.b4 { background: Canvas; }
+    .cell.hit { color: CanvasText; }
+    .lane { forced-color-adjust: none; border: 1px solid CanvasText; }
+    .lane.q-pos { background: repeating-linear-gradient(45deg,  CanvasText 0 2px, Canvas 2px 4px); }
+    .lane.q-neg { background: repeating-linear-gradient(135deg, CanvasText 0 2px, Canvas 2px 4px); }
+    .lane.q-0 { background: Canvas; }
+    .badge { forced-color-adjust: none; background: Canvas; color: CanvasText; border-color: CanvasText; }
+  }
+</style>
+</head>
+<body>
+<div class="viz-root">
+
+  <h1>__PAGE_TITLE__: interface shape &amp; contacts</h1>
+  <p class="sub">
+    Local 3D Zernike curvature of the binding surfaces and minimum heavy-atom
+    distances between contacting residue pairs. Select an interface to compare both views.
+  </p>
+  <p class="meta" id="meta"></p>
+
+  <div class="filters">
+    <div class="fgroup">
+      <span>Interface</span>
+      <div class="seg" id="f-pair" role="group" aria-label="Interface pair"></div>
+    </div>
+    <div class="fgroup">
+      <span>Contact cutoff</span>
+      <div class="seg" id="f-cut" role="group" aria-label="Contact cutoff"></div>
+    </div>
+    <div class="fgroup">
+      <span>Contact type</span>
+      <div class="seg" id="f-type" role="group" aria-label="Contact type"></div>
+    </div>
+    <div class="fgroup">
+      <span>Display</span>
+      <div style="display:flex; gap:12px; align-items:center;">
+        <label class="toggle"><input type="checkbox" id="f-vals" checked> Cell values</label>
+        <label class="toggle"><input type="checkbox" id="f-sasa" checked> &Delta;SASA lane</label>
+      </div>
+    </div>
+    <div class="fgroup">
+      <span>Theme</span>
+      <div class="seg" id="f-theme" role="group" aria-label="Theme"></div>
+    </div>
+    <div class="count" id="count"></div>
+  </div>
+
+  <section class="surface-card" aria-labelledby="surface-heading">
+    <h2 id="surface-heading">3D Zernike surface convexity</h2>
+    <p>Red = stronger local concavity (more negative mean curvature); blue = stronger
+      local convexity. The same Å<sup>&minus;1</sup> scale is used for all three resolved proteins and all resolutions.
+      Drag to rotate, scroll to zoom, or select a residue in the cartoon or table.</p>
+    <div class="surface-controls">
+      <label for="resolution">Convexity resolution</label>
+      <select id="resolution"><option value="4">4 Å · fine</option><option value="6" selected>6 Å · default</option><option value="8">8 Å · broad</option></select>
+      <label for="surface-opacity">Surface opacity</label>
+      <input id="surface-opacity" type="range" min="0" max="0.85" step="0.05" value="0.55">
+      <label for="contact-padding">Contact padding</label>
+      <input id="contact-padding" type="range" min="0" max="8" step="0.5" value="2">
+      <output id="contact-padding-value" for="contact-padding">2.0 Å</output>
+      <label for="separation">Separate opposing surfaces</label>
+      <input id="separation" type="range" min="0" max="12" step="0.5" value="0">
+      <output id="separation-value" for="separation">0 Å</output>
+      <div class="chain-toggles" id="chain-toggles" aria-label="Chain visibility"></div>
+    </div>
+    <div class="surface-colorbar"><span id="color-min"></span><span class="bar" aria-hidden="true"></span><span>0</span><span id="color-max"></span><span id="colorbar-label">H (Å⁻¹) · 6 Å neighborhoods</span><span class="background-swatch" aria-hidden="true"></span><span>outside padded contact</span></div>
+    <div id="protein-stats" class="stats-grid" aria-label="Whole-protein summaries"></div>
+    <div id="pair-stats" class="stats-grid" aria-label="Selected interface summaries"></div>
+    <div id="surface-view" role="img" aria-label="Interactive three-dimensional binding interface"></div>
+    <div id="surface-tip" role="tooltip" aria-hidden="true"></div>
+    <p class="note" id="selection-detail" aria-live="polite">Select a residue in the cartoon, contact map, or interface table.</p>
+    <p class="note" id="surface-note"></p>
+    <h3>Interface residue convexity</h3>
+    <div class="scroll">
+      <table id="curvature-table">
+        <thead><tr><th class="l">chain</th><th class="l">residue</th><th>patch area Å²</th>
+          <th>mean H Å<sup>&minus;1</sup></th><th>convex %</th><th>concave %</th><th>&Delta;SASA Å²</th></tr></thead>
+        <tbody id="curvature-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="tablecard interface-card" aria-labelledby="interface-heading">
+    <h2 id="interface-heading">Binding interface analysis</h2>
+    <p>Pairwise interface area and atom-level interactions from the 5.0 Å reference analysis.</p>
+    <div id="interface-stats" class="stats-grid" aria-label="Selected binding interface summary"></div>
+    <h3>Contacting residues</h3>
+    <p>Resolved residues with a heavy-atom contact within 5.0 Å, ranked by buried surface area. Select a row to locate it in the map and 3D view.</p>
+    <div class="scroll">
+      <table id="residue-table">
+        <thead><tr>
+          <th class="l">chain</th><th class="l">residue</th><th class="l">region</th>
+          <th>&Delta;SASA Å²</th><th>min Å</th><th>atom contacts</th><th>&le;4 Å</th>
+          <th>H-bond-like</th><th>salt</th><th class="l">partner residues</th>
+        </tr></thead>
+        <tbody id="residue-tbody"></tbody>
+      </table>
+    </div>
+    <p class="note">Buried surface area is half the sum of both chains’ reported &Delta;SASA.
+      H-bond-like counts are N/O atom pairs within 3.5 Å; salt counts are charged functional-group atom pairs within 4.0 Å.</p>
+  </section>
+
+  <div class="card">
+    <div class="axis-title" id="col-axis-title"></div>
+    <div id="grid" role="grid" aria-label="Residue contact map"></div>
+    <p class="note" id="grid-empty" hidden>No contacts match the selected interface and filters.</p>
+    <div class="axis-title" id="row-axis-title" style="margin-top:8px;"></div>
+
+    <div class="legends">
+      <div class="leg">
+        <h3>Distance &mdash; min heavy atom (&Aring;)</h3>
+        <div class="ramp" id="leg-dist"></div>
+      </div>
+      <div class="leg">
+        <h3>Curvature mark on residue labels</h3>
+        <span class="curvature-key" aria-hidden="true"></span>
+        <small>concave &larr; 0 &rarr; convex; exact H in tooltips</small>
+      </div>
+      <div class="leg">
+        <h3>Residue charge at pH 7.4</h3>
+        <div class="keys">
+          <span class="key"><i class="lane q-pos">+</i> Cationic &mdash; K, R</span>
+          <span class="key"><i class="lane q-neg">&minus;</i> Anionic &mdash; D, E</span>
+          <span class="key"><i class="lane q-0">&nbsp;</i> Uncharged</span>
+        </div>
+      </div>
+      <div class="leg">
+        <h3>Residue class</h3>
+        <div class="keys">
+          <span class="key"><i class="shape">&#9679;</i> Polar</span>
+          <span class="key"><i class="shape">&#9650;</i> Hydrophobic</span>
+          <span class="key"><i class="shape">&#9670;</i> Aromatic</span>
+          <span class="key"><i class="shape">&#9675;</i> Gly / Pro / Cys</span>
+        </div>
+      </div>
+      <div class="leg">
+        <h3>Pair &amp; residue marks</h3>
+        <div class="keys">
+          <span class="key"><i class="dot" style="background:var(--pos)">+</i> Salt bridge &le;4.0&nbsp;&Aring;</span>
+          <span class="key"><i class="dot" style="background:var(--neg)">&times;</i> Like charge &le;6.0&nbsp;&Aring;</span>
+          <span class="key"><i style="background:var(--text-1)"></i> &Delta;SASA, opaque = 120&nbsp;&Aring;&sup2;</span>
+          <span class="key"><i class="hollow"></i> &Delta;SASA not computed</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tablecard">
+    <h2>Contact pairs</h2>
+    <p>
+      Every value the chart encodes, as text. Sorted by distance; tracks the filters above.
+    </p>
+    <div class="scroll">
+      <table>
+        <thead><tr>
+          <th class="l" id="head-row-chain">chain A</th><th class="l">class</th><th>q</th><th>&Delta;SASA</th>
+          <th class="l" id="head-col-chain">chain C</th><th class="l">class</th><th>q</th><th>&Delta;SASA</th>
+          <th>d<sub>min</sub> &Aring;</th><th>contacts</th><th>&le;4&nbsp;&Aring;</th>
+          <th>H&#8209;bond</th><th>salt</th><th class="l">note</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <p class="note" id="tnote"></p>
+  </div>
+
+  <div id="tip" role="tooltip" aria-hidden="true"></div>
+</div>
+
+<!-- __NGL_LICENSE__ -->
+<script>__NGL_JS__</script>
+<script>
+"use strict";
+const PAIRS = __PAYLOAD__;
+const SURFACE = __SURFACE_DATA__;
+const ANALYSIS = __ANALYSIS__;
+const PAGE = __PAGE_DATA__;
+const PDB_TEXT = __PDB_TEXT__;
+let pairKey = "AC";
+let DATA = PAIRS[pairKey];
+
+/* Distance bins. Edges are inclusive at the top: d <= 3.0 is bin 0. */
+const BINS = [3.0, 3.5, 4.0, 5.0, 6.0];
+const BIN_LABEL = ["≤3.0", "3.0–3.5", "3.5–4.0", "4.0–5.0", "5.0–6.0"];
+const SHAPE = { polar: "●", hyd: "▲", arom: "◆", spec: "○" };
+const CLASS_NAME = {
+  pos: "cationic", neg: "anionic", polar: "polar",
+  hyd: "hydrophobic", arom: "aromatic", spec: "Gly/Pro/Cys",
+};
+const CUTOFFS = [4.5, 5.0, 6.0];
+const TYPES = [
+  ["all", "All"], ["tight", "≤4 Å"], ["hb", "H-bond"],
+  ["sb", "Salt bridge"], ["like", "Like charge"],
+];
+const SASA_FULL = 120;   // dSASA at which the lane reaches full opacity
+
+const state = { cut: DATA.cutoff, type: "all", vals: true, sasa: true };
+let scaleKey = "6";
+let selectedResidues = [];
+const CURVATURE_COLORS = [
+  [0, [142, 13, 19]], [0.25, [239, 106, 97]], [0.5, [244, 244, 241]],
+  [0.75, [116, 173, 209]], [1, [33, 102, 172]],
+];
+function curvatureColor(h) {
+  if (h == null || !Number.isFinite(h)) return "var(--axis)";
+  const lim = SURFACE.report.color_limit_Ainv;
+  const v = Math.max(0, Math.min(1, (h / lim + 1) / 2));
+  let i = 0;
+  while (i < CURVATURE_COLORS.length - 2 && v > CURVATURE_COLORS[i + 1][0]) i++;
+  const [a, c1] = CURVATURE_COLORS[i], [b, c2] = CURVATURE_COLORS[i + 1];
+  const t = (v - a) / (b - a);
+  return `rgb(${c1.map((x, j) => Math.round(x + t * (c2[j] - x))).join(",")})`;
+}
+function interfaceCurvatureOf(chain, label) {
+  return SURFACE.report.scales[scaleKey].interfaces[pairKey][chain].residues.find((r) => r.label === label);
+}
+function curvatureOf(chain, label) {
+  return interfaceCurvatureOf(chain, label)
+    || SURFACE.report.scales[scaleKey].proteins[chain].residues.find((r) => r.label === label);
+}
+function fmtH(h) { return h == null ? "n/a" : `${h >= 0 ? "+" : ""}${h.toFixed(3)} Å⁻¹`; }
+function fmtPercent(x) { return x == null ? "n/a" : `${(100 * x).toFixed(1)}%`; }
+function renderSelection() {
+  grid.querySelectorAll(".rlabel,.clabel,.cell").forEach((el) => el.classList.remove("selected"));
+  for (const key of selectedResidues) {
+    const [chain, label] = key.split(":");
+    if (chain === DATA.rowChain) {
+      grid.querySelectorAll(".rlabel").forEach((el) => {
+        if (DATA.rows[+el.dataset.data].label === label) el.classList.add("selected");
+      });
+    } else if (chain === DATA.colChain) {
+      grid.querySelectorAll(".clabel").forEach((el) => {
+        if (DATA.cols[+el.dataset.data].label === label) el.classList.add("selected");
+      });
+    }
+  }
+  grid.querySelectorAll(".cell.hit").forEach((el) => {
+    const c = DATA.cells.find((x) => `${x.r}:${x.c}` === el.dataset.key);
+    if (c && selectedResidues.some((key) => key === `${DATA.rowChain}:${DATA.rows[c.r].label}`
+      || key === `${DATA.colChain}:${DATA.cols[c.c].label}`)) el.classList.add("selected");
+  });
+  document.querySelectorAll("#curvature-tbody tr").forEach((tr) =>
+    tr.classList.toggle("pick", selectedResidues.includes(tr.dataset.residue)));
+  document.querySelectorAll("#residue-tbody tr").forEach((tr) =>
+    tr.classList.toggle("pick", selectedResidues.includes(tr.dataset.residue)));
+}
+
+const binOf = (d) => { for (let i = 0; i < BINS.length; i++) if (d <= BINS[i]) return i; return 4; };
+const qGlyph = (q) => (q > 0 ? "⁺" : q < 0 ? "⁻" : "");
+const labelOf = (r) => r.label + qGlyph(r.charge);
+
+/* Ink on a filled cell flips on the bin's own luminance, so the scheme survives a
+   ramp swap and both themes. */
+function inkFor(bin) {
+  const hex = getComputedStyle(document.querySelector(".viz-root"))
+    .getPropertyValue("--d" + bin).trim();
+  const m = hex.match(/^#?([0-9a-f]{6})$/i);
+  if (!m) return "ink-light";
+  const n = parseInt(m[1], 16);
+  const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  const L = 0.2126 * lin(n >> 16 & 255) + 0.7152 * lin(n >> 8 & 255) + 0.0722 * lin(n & 255);
+  return L < 0.42 ? "ink-light" : "ink-dark";
+}
+
+function matches(c) {
+  if (c.d > state.cut) return false;
+  switch (state.type) {
+    case "tight": return c.tight > 0;
+    case "hb": return c.hb.length > 0;
+    case "sb": return c.sb.length > 0;
+    case "like": return c.like.length > 0 && c.sb.length === 0;
+    default: return true;
+  }
+}
+
+/* Filters shrink the set, they never recolour it: a cell keeps its distance bin
+   whatever else is on screen. Axes re-derive from the surviving cells, so at 5.0 A
+   the grid drops to 25 x 23. */
+function slice() {
+  const cells = DATA.cells.filter(matches);
+  const rs = [...new Set(cells.map((c) => c.r))].sort((a, b) => a - b);
+  const cs = [...new Set(cells.map((c) => c.c))].sort((a, b) => a - b);
+  return { cells, rs, cs, ri: new Map(rs.map((v, i) => [v, i])), ci: new Map(cs.map((v, i) => [v, i])) };
+}
+
+/* Runs of consecutive visible entries sharing a bracket key. */
+function runs(idx, keyOf) {
+  const out = [];
+  let i = 0;
+  while (i < idx.length) {
+    const k = keyOf(idx[i]);
+    let j = i;
+    while (j + 1 < idx.length && keyOf(idx[j + 1]) === k) j++;
+    if (k) out.push({ key: k, from: i, to: j });
+    i = j + 1;
+  }
+  return out;
+}
+
+const grid = document.getElementById("grid");
+const tip = document.getElementById("tip");
+let cur = null;                       // {r, c} of the roving tabindex
+let cellAt = new Map();               // "r:c" -> element
+
+function place(el, col, row, colSpan, rowSpan) {
+  el.style.gridColumn = colSpan ? `${col} / span ${colSpan}` : String(col);
+  el.style.gridRow = rowSpan ? `${row} / span ${rowSpan}` : String(row);
+}
+
+function render() {
+  const S = slice();
+  const nr = S.rs.length, nc = S.cs.length;
+  document.getElementById("grid-empty").hidden = S.cells.length !== 0;
+  document.getElementById("col-axis-title").textContent =
+    `${DATA.colName} — chain ${DATA.colChain}, columns →`;
+  document.getElementById("row-axis-title").textContent =
+    `${DATA.rowName} — chain ${DATA.rowChain}, rows ↓`;
+  document.getElementById("head-row-chain").textContent = DATA.rowName;
+  document.getElementById("head-col-chain").textContent = DATA.colName;
+  grid.setAttribute("aria-label", `${DATA.rowName} by ${DATA.colName} residue contact map`);
+  document.getElementById("meta").textContent =
+    `PDB ${DATA.pdb} · chain ${DATA.rowChain} (${DATA.rowName}) × chain ${DATA.colChain} `
+    + `(${DATA.colName}) · ${DATA.rows.length} × ${DATA.cols.length} contacting residues `
+    + `at ${DATA.cutoff.toFixed(1)} Å · wider gaps mark sequence gaps`;
+
+  /* A sequence break gets its own narrow track rather than a margin on the cell:
+     a margin inside a fixed --cell track shrinks the cell itself, which crops the
+     value and drops the hit target below the 24px minimum. trackOf maps a data
+     index to its grid line, skipping the inserted spacer tracks. */
+  const rowBrk = new Set(), colBrk = new Set();
+  S.rs.forEach((r, i) => { if (i > 0 && DATA.rows[r].resid - DATA.rows[S.rs[i - 1]].resid > 1) rowBrk.add(i); });
+  S.cs.forEach((c, i) => { if (i > 0 && DATA.cols[c].resid - DATA.cols[S.cs[i - 1]].resid > 1) colBrk.add(i); });
+
+  const lead = state.sasa ? 4 : 3;        // bracket | label | charge lane | [dSASA]
+  const C0 = lead + 1, R0 = lead + 1;     // first data track
+  const trackOf = (i, brk) => {
+    let t = C0 + i;
+    for (const b of brk) if (b <= i) t++;
+    return t;
+  };
+  const tracks = (n, brk) => {
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      if (brk.has(i)) out.push("var(--gap)");
+      out.push("var(--cell)");
+    }
+    return out.join(" ");
+  };
+
+  grid.style.gridTemplateColumns =
+    `var(--gut) auto var(--lane) ${state.sasa ? "var(--lane) " : ""}${tracks(nc, colBrk)}`;
+  grid.style.gridTemplateRows =
+    `auto auto var(--lane) ${state.sasa ? "var(--lane) " : ""}${tracks(nr, rowBrk)}`;
+  grid.classList.toggle("novals", !state.vals);
+
+  grid.textContent = "";
+  cellAt = new Map();
+  const frag = document.createDocumentFragment();
+
+  const add = (cls, text, col, row, colSpan, rowSpan) => {
+    const el = document.createElement("div");
+    el.className = cls;
+    if (text) {
+      const s = document.createElement("span");
+      s.textContent = text;                   // untrusted labels: never innerHTML
+      el.appendChild(s);
+    }
+    place(el, col, row, colSpan, rowSpan);
+    frag.appendChild(el);
+    return el;
+  };
+
+  // one recessive hairline per sequence break, spanning the whole data area
+  for (const i of rowBrk) {
+    add("gapline h", "", C0, trackOf(i, rowBrk) - 1, nc + colBrk.size, 1)
+      .setAttribute("aria-hidden", "true");
+  }
+  for (const j of colBrk) {
+    add("gapline v", "", trackOf(j, colBrk) - 1, R0, 1, nr + rowBrk.size)
+      .setAttribute("aria-hidden", "true");
+  }
+
+  /* Brackets. A key can appear as several runs when other residues interleave
+     (the D1 patch is split by D72/K73), so only the widest run of each key is
+     labelled -- repeating "D1 patch" four times down the axis reads as four
+     different patches. The narrower runs keep the bracket line, unlabelled. */
+  const widest = (rr) => {
+    const best = new Map();
+    for (const r of rr) {
+      const w = r.to - r.from;
+      if (!best.has(r.key) || w > best.get(r.key)) best.set(r.key, w);
+    }
+    return (r) => r.to - r.from === best.get(r.key);
+  };
+
+  const rRuns = runs(S.rs, (r) => DATA.rows[r].element), rPick = widest(rRuns);
+  for (const run of rRuns) {
+    const a = trackOf(run.from, rowBrk), b = trackOf(run.to, rowBrk);
+    add("bracket v", rPick(run) ? run.key : "", 1, a, 1, b - a + 1)
+      .setAttribute("aria-hidden", "true");
+  }
+  const cRuns = runs(S.cs, (c) => DATA.cols[c].patch), cPick = widest(cRuns);
+  for (const run of cRuns) {
+    const a = trackOf(run.from, colBrk), b = trackOf(run.to, colBrk);
+    add("bracket h", cPick(run) ? run.key + " patch" : "", a, 1, b - a + 1, 1)
+      .setAttribute("aria-hidden", "true");
+  }
+
+  const laneCls = (e) =>
+    `lane q-${e.charge > 0 ? "pos" : e.charge < 0 ? "neg" : "0"}`;
+  const laneText = (e) => (e.charge ? qGlyph(e.charge) : SHAPE[e.cls]);
+  const sasaTitle = (e) => (e.dsasa == null
+    ? `ΔSASA not reported (${PAGE.analysis_file} lists 5.0 Å contacting residues)`
+    : `ΔSASA ${e.dsasa} Å²`);
+
+  // column axis
+  S.cs.forEach((c, i) => {
+    const e = DATA.cols[c], gc = trackOf(i, colBrk);
+    const lab = add("clabel", labelOf(e), gc, 2);
+    lab.dataset.c = i;
+    lab.dataset.data = c;
+    const curvature = curvatureOf(DATA.colChain, e.label);
+    if (curvature?.mean_H_Ainv != null) {
+      lab.style.boxShadow = `inset 0 -4px 0 ${curvatureColor(curvature.mean_H_Ainv)}`;
+      lab.title = `Mean ${interfaceCurvatureOf(DATA.colChain, e.label) ? "interface" : "whole-surface"} curvature ${fmtH(curvature.mean_H_Ainv)}`;
+    }
+    add(laneCls(e), laneText(e), gc, 3).title =
+      `${e.aa3} ${e.resid} — ${CLASS_NAME[e.cls]}`;
+    if (state.sasa) {
+      const s = add("sasa" + (e.dsasa == null ? " none" : ""), "", gc, 4);
+      if (e.dsasa != null) s.style.opacity = Math.max(0.08, Math.min(1, e.dsasa / SASA_FULL));
+      s.title = sasaTitle(e);
+    }
+  });
+
+  // row axis
+  S.rs.forEach((r, i) => {
+    const e = DATA.rows[r], gr = trackOf(i, rowBrk);
+    const lab = add("rlabel", labelOf(e), 2, gr);
+    lab.dataset.r = i;
+    lab.dataset.data = r;
+    const curvature = curvatureOf(DATA.rowChain, e.label);
+    if (curvature?.mean_H_Ainv != null) {
+      lab.style.boxShadow = `inset 4px 0 0 ${curvatureColor(curvature.mean_H_Ainv)}`;
+      lab.title = `Mean ${interfaceCurvatureOf(DATA.rowChain, e.label) ? "interface" : "whole-surface"} curvature ${fmtH(curvature.mean_H_Ainv)}`;
+    }
+    add(laneCls(e), laneText(e), 3, gr).title =
+      `${e.aa3} ${e.resid} — ${CLASS_NAME[e.cls]}`
+      + (e.also_other ? `; also buries against ${e.also_other}` : "");
+    if (state.sasa) {
+      const s = add("sasa" + (e.dsasa == null ? " none" : ""), "", 4, gr);
+      if (e.dsasa != null) s.style.opacity = Math.max(0.08, Math.min(1, e.dsasa / SASA_FULL));
+      s.title = sasaTitle(e);
+    }
+  });
+
+  // cells -- the whole lattice, so the empty positions read as "measured, far apart"
+  const byPos = new Map(S.cells.map((c) => [`${c.r}:${c.c}`, c]));
+  for (let i = 0; i < nr; i++) {
+    for (let j = 0; j < nc; j++) {
+      const c = byPos.get(`${S.rs[i]}:${S.cs[j]}`);
+      const el = add("cell", "", trackOf(j, colBrk), trackOf(i, rowBrk));
+      el.setAttribute("role", "gridcell");
+      el.tabIndex = -1;
+      el.dataset.r = i; el.dataset.c = j;
+      cellAt.set(`${i}:${j}`, el);
+
+      const rE = DATA.rows[S.rs[i]], cE = DATA.cols[S.cs[j]];
+      if (!c) {
+        el.setAttribute("aria-label", `${rE.label} ${cE.label}: no contact`);
+        continue;
+      }
+      const b = binOf(c.d);
+      el.classList.add("hit", "b" + b, inkFor(b));
+      el.textContent = c.d.toFixed(2);
+      el.dataset.key = `${c.r}:${c.c}`;
+      el.setAttribute("aria-label",
+        `${rE.label} to ${cE.label}: ${c.d.toFixed(2)} angstrom, ${c.n} atom contacts`
+        + (c.sb.length ? ", salt bridge" : "") + (c.hb.length ? `, ${c.hb.length} H-bond` : ""));
+
+      if (c.sb.length || c.like.length) {
+        const bd = document.createElement("div");
+        bd.className = "badge " + (c.sb.length ? "salt" : "like");
+        bd.textContent = c.sb.length ? "+" : "×";
+        el.appendChild(bd);
+      }
+    }
+  }
+  grid.appendChild(frag);
+
+  /* Measure before keeping a bracket label: a run too short for its text drops the
+     label and keeps the line, rather than showing a clipped "heli". Same rule as a
+     value that will not fit inside its bar. The title attribute keeps it reachable. */
+  for (const el of grid.querySelectorAll(".bracket")) {
+    const s = el.querySelector("span");
+    if (!s) continue;
+    const vertical = el.classList.contains("v");
+    const room = vertical ? el.clientHeight : el.clientWidth;
+    const need = vertical ? s.scrollHeight : s.scrollWidth;
+    if (need > room - 2) {
+      el.title = s.textContent;
+      s.remove();
+    }
+  }
+
+  if (!cur || !cellAt.has(`${cur.r}:${cur.c}`)) cur = nr && nc ? { r: 0, c: 0 } : null;
+  if (cur) cellAt.get(`${cur.r}:${cur.c}`).tabIndex = 0;
+
+  renderTable(S);
+  renderSelection();
+  document.getElementById("count").innerHTML =
+    `<b>${S.cells.length}</b> pairs &middot; <b>${nr}</b> ${DATA.rowName} &times; <b>${nc}</b> ${DATA.colName} residues`;
+}
+
+function renderTable(S) {
+  const tb = document.getElementById("tbody");
+  tb.textContent = "";
+  const frag = document.createDocumentFragment();
+  for (const c of S.cells) {
+    const r = DATA.rows[c.r], k = DATA.cols[c.c];
+    const tr = document.createElement("tr");
+    tr.dataset.key = `${c.r}:${c.c}`;
+    const notes = [];
+    if (c.sb.length) notes.push("salt bridge");
+    if (c.like.length && !c.sb.length) notes.push("like charge");
+    if (c.hb.length) notes.push(c.hb.map((h) => `${h[0]}·${h[1]} ${h[2]}Å`).join(", "));
+    const cells = [
+      [labelOf(r), "res l"], [CLASS_NAME[r.cls], "l"],
+      [r.charge > 0 ? "+1" : r.charge < 0 ? "−1" : "0", ""],
+      [r.dsasa == null ? "–" : r.dsasa.toFixed(1), ""],
+      [labelOf(k), "res l"], [CLASS_NAME[k.cls], "l"],
+      [k.charge > 0 ? "+1" : k.charge < 0 ? "−1" : "0", ""],
+      [k.dsasa == null ? "–" : k.dsasa.toFixed(1), ""],
+      [c.d.toFixed(2), "res"], [String(c.n), ""], [String(c.tight), ""],
+      [String(c.hb.length), ""], [String(c.sb.length), ""], [notes.join("; ") || "–", "l"],
+    ];
+    for (const [txt, cls] of cells) {
+      const td = document.createElement("td");
+      if (cls) td.className = cls;
+      td.textContent = txt;                   // untrusted labels: never innerHTML
+      tr.appendChild(td);
+    }
+    frag.appendChild(tr);
+  }
+  tb.appendChild(frag);
+  if (!S.cells.length) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 14;
+    td.textContent = "No contacts match the selected interface and filters.";
+    tr.appendChild(td);
+    tb.appendChild(tr);
+  }
+
+  const noD = new Set();
+  for (const c of S.cells) {
+    if (DATA.rows[c.r].dsasa == null) noD.add(DATA.rows[c.r].label);
+    if (DATA.cols[c.c].dsasa == null) noD.add(DATA.cols[c.c].label);
+  }
+  document.getElementById("tnote").textContent =
+    `ΔSASA is read from ${PAGE.analysis_file}, which reports 5.0 Å contacting residues; `
+    + `cutoff; ${noD.size} residue(s) in this slice have none and show “–” `
+    + `rather than a zero. Salt bridges and like-charge pairs are detected between `
+    + `charged functional-group atoms (Asp OD1/OD2, Glu OE1/OE2, Lys NZ, Arg NE/NH1/NH2, `
+    + `His ND1/NE2), never from the residue-level distance.`;
+}
+
+/* --- tooltip: values lead, labels follow; same on hover and keyboard focus --- */
+function showTip(el) {
+  const c = DATA.cells.find((x) => `${x.r}:${x.c}` === el.dataset.key);
+  if (!c) return hideTip();
+  const r = DATA.rows[c.r], k = DATA.cols[c.c];
+  tip.textContent = "";
+
+  const v = document.createElement("div");
+  v.className = "val";
+  v.textContent = c.d.toFixed(2);
+  const u = document.createElement("small"); u.textContent = " Å min heavy atom";
+  v.appendChild(u);
+  tip.appendChild(v);
+
+  for (const [e, who, chain] of [
+    [r, `${DATA.rowName}${r.element ? " · " + r.element : ""}${r.patch ? " · " + r.patch + " patch" : ""}`, DATA.rowChain],
+    [k, `${DATA.colName}${k.element ? " · " + k.element : ""}${k.patch ? " · " + k.patch + " patch" : ""}`, DATA.colChain],
+  ]) {
+    const line = document.createElement("div");
+    line.className = "pairline";
+    const sw = document.createElement("i");
+    sw.className = `lane q-${e.charge > 0 ? "pos" : e.charge < 0 ? "neg" : "0"}`;
+    sw.textContent = e.charge ? qGlyph(e.charge) : SHAPE[e.cls];
+    line.appendChild(sw);
+    const nm = document.createElement("span");
+    nm.textContent = `${e.aa3} ${e.resid}`;
+    line.appendChild(nm);
+    const wh = document.createElement("span");
+    wh.className = "who";
+    wh.textContent = `${who} · ${CLASS_NAME[e.cls]}`
+      + (e.dsasa == null ? "" : ` · ΔSASA ${e.dsasa} Å²`)
+      + (curvatureOf(chain, e.label)?.mean_H_Ainv == null ? "" :
+        ` · ${interfaceCurvatureOf(chain, e.label) ? "interface" : "whole-surface"} H ${fmtH(curvatureOf(chain, e.label).mean_H_Ainv)}`);
+    line.appendChild(wh);
+    tip.appendChild(line);
+  }
+
+  const dl = document.createElement("dl");
+  const row = (a, b) => {
+    const dt = document.createElement("dt"); dt.textContent = a;
+    const dd = document.createElement("dd"); dd.textContent = b;
+    dl.append(dt, dd);
+  };
+  row("Atom contacts ≤6 Å", String(c.n));
+  row("Tight ≤4 Å", String(c.tight));
+  if (c.hb.length) row("H-bonds", c.hb.map((h) => `${h[0]}·${h[1]} ${h[2]}Å`).join(", "));
+  if (c.sb.length) row("Salt bridge", c.sb.map((s) => `${s[0]}·${s[1]} ${s[2]}Å`).join(", "));
+  if (c.like.length && !c.sb.length) row("Like charge", c.like.map((s) => `${s[0]}·${s[1]} ${s[2]}Å`).join(", "));
+  if (r.also_other) row("Note", `${DATA.rowName} residue also buries against ${r.also_other}`);
+  if (k.also_other) row("Note", `${DATA.colName} residue also buries against ${k.also_other}`);
+  tip.appendChild(dl);
+
+  tip.classList.add("on");
+  tip.setAttribute("aria-hidden", "false");
+  const b = el.getBoundingClientRect(), t = tip.getBoundingClientRect();
+  let x = b.right + 12, y = b.top - 8;
+  if (x + t.width > innerWidth - 8) x = b.left - t.width - 12;
+  if (y + t.height > innerHeight - 8) y = innerHeight - t.height - 8;
+  tip.style.left = Math.max(8, x) + "px";
+  tip.style.top = Math.max(8, y) + "px";
+
+  grid.querySelectorAll(".on").forEach((n) => n.classList.remove("on"));
+  grid.querySelector(`.rlabel[data-r="${el.dataset.r}"]`)?.classList.add("on");
+  grid.querySelector(`.clabel[data-c="${el.dataset.c}"]`)?.classList.add("on");
+  el.classList.add("act");
+}
+function hideTip() {
+  tip.classList.remove("on");
+  tip.setAttribute("aria-hidden", "true");
+  grid.querySelectorAll(".on").forEach((n) => n.classList.remove("on"));
+  grid.querySelectorAll(".act").forEach((n) => n.classList.remove("act"));
+}
+
+grid.addEventListener("pointerover", (e) => {
+  const el = e.target.closest(".cell");
+  if (el && el.classList.contains("hit")) showTip(el); else hideTip();
+});
+grid.addEventListener("pointerleave", hideTip);
+function chooseContact(c) {
+  selectedResidues = [
+    `${DATA.rowChain}:${DATA.rows[c.r].label}`,
+    `${DATA.colChain}:${DATA.cols[c.c].label}`,
+  ];
+  renderSelection();
+  renderSurface();
+}
+grid.addEventListener("click", (e) => {
+  const el = e.target.closest(".cell.hit");
+  if (!el) return;
+  const c = DATA.cells.find((x) => `${x.r}:${x.c}` === el.dataset.key);
+  if (c) chooseContact(c);
+});
+document.getElementById("tbody").addEventListener("click", (e) => {
+  const tr = e.target.closest("tr[data-key]");
+  if (!tr) return;
+  const c = DATA.cells.find((x) => `${x.r}:${x.c}` === tr.dataset.key);
+  if (c) chooseContact(c);
+});
+grid.addEventListener("focusin", (e) => {
+  const el = e.target.closest(".cell");
+  if (!el) return;
+  cur = { r: +el.dataset.r, c: +el.dataset.c };
+  if (el.classList.contains("hit")) showTip(el); else hideTip();
+});
+grid.addEventListener("focusout", hideTip);
+
+/* Roving tabindex: one stop for the whole matrix, arrows to traverse. */
+grid.addEventListener("keydown", (e) => {
+  if (!cur) return;
+  if (e.key === "Enter" || e.key === " ") {
+    const el = e.target.closest(".cell.hit");
+    if (el) {
+      const c = DATA.cells.find((x) => `${x.r}:${x.c}` === el.dataset.key);
+      if (c) { e.preventDefault(); chooseContact(c); }
+    }
+    return;
+  }
+  const nr = grid.querySelectorAll(".rlabel").length, nc = grid.querySelectorAll(".clabel").length;
+  let { r, c } = cur;
+  switch (e.key) {
+    case "ArrowUp": r--; break;
+    case "ArrowDown": r++; break;
+    case "ArrowLeft": c--; break;
+    case "ArrowRight": c++; break;
+    case "Home": c = 0; break;
+    case "End": c = nc - 1; break;
+    default: return;
+  }
+  r = Math.max(0, Math.min(nr - 1, r));
+  c = Math.max(0, Math.min(nc - 1, c));
+  const next = cellAt.get(`${r}:${c}`);
+  if (!next) return;
+  e.preventDefault();
+  cellAt.get(`${cur.r}:${cur.c}`).tabIndex = -1;
+  next.tabIndex = 0;
+  next.focus();
+});
+
+/* --- Zernike surface and numeric summaries -------------------------------- */
+const surfacePlot = document.getElementById("surface-view");
+const stage = new NGL.Stage(surfacePlot, {backgroundColor: "#f7f7f5", sampleLevel: 0});
+const cartoonColors = {A: "#dfaa25", B: "#36a58b", C: "#8b70c7"};
+const visibleChains = {A: true, B: true, C: true};
+const structureComponents = {}, cartoonReps = {}, meshComponents = {}, meshReps = {};
+let markerComponents = [];
+let meshesInstalled = false;
+let meshColorKey = null;
+const aa3to1 = {ALA:"A",ARG:"R",ASN:"N",ASP:"D",CYS:"C",GLN:"Q",GLU:"E",
+  GLY:"G",HIS:"H",ILE:"I",LEU:"L",LYS:"K",MET:"M",PHE:"F",PRO:"P",
+  SER:"S",THR:"T",TRP:"W",TYR:"Y",VAL:"V"};
+function summaryCard(host, heading, values) {
+  const card = document.createElement("div");
+  card.className = "stat-card";
+  const title = document.createElement("strong");
+  title.textContent = heading;
+  card.appendChild(title);
+  for (const value of values) {
+    const line = document.createElement("span");
+    line.textContent = value;
+    card.appendChild(line);
+  }
+  host.appendChild(card);
+}
+function renderInterfaceAnalysis() {
+  const analysis = ANALYSIS[pairKey];
+  const host = document.getElementById("interface-stats");
+  host.textContent = "";
+  const pairCount = DATA.cells.filter((c) => c.d <= 5.0).length;
+  const counts = Object.fromEntries([...pairKey].map((chain) =>
+    [chain, analysis.residues.filter((r) => r.chain === chain).length]));
+  summaryCard(host, `${DATA.rowName} × ${DATA.colName}`, [
+    `Buried surface area ${analysis.buried_surface_area_A2.toFixed(0)} Å²`,
+    `${pairCount} contacting residue pairs at 5.0 Å`,
+  ]);
+  summaryCard(host, "Interface residues", [
+    `${counts[DATA.rowChain]} ${DATA.rowName} residues`,
+    `${counts[DATA.colChain]} ${DATA.colName} residues`,
+    `${analysis.n_interface_residues} total`,
+  ]);
+  summaryCard(host, "Polar contacts", [
+    `${analysis.n_hbond_like} H-bond-like atom pairs`,
+    `${analysis.n_saltbridge} salt-bridge atom pairs`,
+  ]);
+
+  const tbody = document.getElementById("residue-tbody");
+  tbody.textContent = "";
+  const metadata = new Map();
+  for (const entry of DATA.rows) metadata.set(`${DATA.rowChain}:${entry.label}`, entry);
+  for (const entry of DATA.cols) metadata.set(`${DATA.colChain}:${entry.label}`, entry);
+  const fragment = document.createDocumentFragment();
+  for (const r of analysis.residues) {
+    const tr = document.createElement("tr");
+    tr.dataset.residue = `${r.chain}:${r.label}`;
+    tr.tabIndex = 0;
+    const detail = metadata.get(tr.dataset.residue);
+    const name = r.chain === DATA.rowChain ? DATA.rowName : DATA.colName;
+    const region = detail?.element || (detail?.patch ? `${detail.patch} patch` : "–");
+    tr.setAttribute("aria-label", `${name} ${r.label}, ΔSASA ${r.dSASA} square angstroms`);
+    for (const [value, cls] of [
+      [`${name} (${r.chain})`, "l"], [r.label, "res l"], [region, "l"],
+      [r.dSASA.toFixed(1), ""], [r.min_dist.toFixed(2), ""],
+      [String(r.n_contacts), ""], [String(r.n_tight), ""],
+      [String(r.n_hbond), ""], [String(r.n_saltbridge), ""],
+      [r.partners.join(", "), "l"],
+    ]) {
+      const td = document.createElement("td");
+      if (cls) td.className = cls;
+      td.textContent = value;
+      tr.appendChild(td);
+    }
+    fragment.appendChild(tr);
+  }
+  tbody.appendChild(fragment);
+  renderSelection();
+}
+document.getElementById("residue-tbody").addEventListener("click", (event) => {
+  const row = event.target.closest("tr[data-residue]");
+  if (!row) return;
+  selectedResidues = [row.dataset.residue];
+  renderSelection();
+  renderSurface();
+});
+document.getElementById("residue-tbody").addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const row = event.target.closest("tr[data-residue]");
+  if (row) { event.preventDefault(); row.click(); }
+});
+function renderStats() {
+  const proteinHost = document.getElementById("protein-stats");
+  proteinHost.textContent = "";
+  for (const chain of ["A", "B", "C"]) {
+    const s = SURFACE.report.scales[scaleKey].proteins[chain];
+    summaryCard(proteinHost, `${s.name} · whole resolved surface`, [
+      `Surface area ${s.area_A2.toFixed(1)} Å²`,
+      `Mean H ${fmtH(s.mean_H_Ainv)}`,
+      `Convex ${fmtPercent(s.convex_fraction)} · concave ${fmtPercent(s.concave_fraction)}`,
+    ]);
+  }
+  const pairHost = document.getElementById("pair-stats");
+  pairHost.textContent = "";
+  for (const chain of pairKey) {
+    const s = SURFACE.report.scales[scaleKey].interfaces[pairKey][chain];
+    summaryCard(pairHost, `${s.name} · ${pairKey} face`, [
+      `Patch area ${s.area_A2.toFixed(1)} Å²`,
+      `Mean H ${fmtH(s.mean_H_Ainv)}`,
+      `Convex ${fmtPercent(s.convex_fraction)} · concave ${fmtPercent(s.concave_fraction)}`,
+    ]);
+  }
+  const sideA = SURFACE.report.scales[scaleKey].interfaces[pairKey][pairKey[0]];
+  const sideB = SURFACE.report.scales[scaleKey].interfaces[pairKey][pairKey[1]];
+  summaryCard(pairHost, "Reference interface area", [
+    `${((sideA.reference_dSASA_A2 + sideB.reference_dSASA_A2) / 2).toFixed(0)} Å² from ΔSASA`,
+    `Mesh patches: ${sideA.area_A2.toFixed(0)} / ${sideB.area_A2.toFixed(0)} Å²`,
+    "Areas are computed by independent methods.",
+  ]);
+  document.getElementById("surface-note").textContent =
+    `PDB ${PAGE.pdb.replace(".pdb", "")} (${PAGE.resolution.toFixed(2)} Å resolution). Protein heavy atoms only; waters, glycans, and `
+    + `unresolved residues are excluded. A 1.4 Å probe defines the surface; a ${scaleKey} Å `
+    + `neighborhood and order-6 3D Zernike fit define H. Convex means both principal `
+    + `curvatures > +0.02 Å⁻¹; concave means both < −0.02 Å⁻¹. Colors clip at `
+    + `±${SURFACE.report.color_limit_Ainv.toFixed(3)} Å⁻¹ for display; numeric values do not. `
+    + `Contact padding changes only the colored display, not interface areas or statistics. `
+    + `The separation slider moves cartoons and surfaces for viewing only; measurements use the crystal coordinates.`;
+  renderCurvatureTable();
+  renderInterfaceAnalysis();
+}
+function renderCurvatureTable() {
+  const tbody = document.getElementById("curvature-tbody");
+  tbody.textContent = "";
+  const rows = [];
+  for (const chain of pairKey) {
+    const mapEntries = chain === DATA.rowChain ? DATA.rows : DATA.cols;
+    const sasa = new Map(mapEntries.map((r) => [r.label, r.dsasa]));
+    for (const item of SURFACE.report.scales[scaleKey].interfaces[pairKey][chain].residues) {
+      rows.push({chain, name: SURFACE.report.scales[scaleKey].interfaces[pairKey][chain].name,
+                 item, dsasa: sasa.get(item.label)});
+    }
+  }
+  rows.sort((a, b) => b.item.area_A2 - a.item.area_A2);
+  for (const r of rows) {
+    const tr = document.createElement("tr");
+    tr.dataset.residue = `${r.chain}:${r.item.label}`;
+    tr.tabIndex = 0;
+    tr.setAttribute("aria-label", `${r.name} ${r.item.label}, mean curvature ${fmtH(r.item.mean_H_Ainv)}`);
+    for (const val of [r.name, r.item.label, r.item.area_A2.toFixed(1),
+      fmtH(r.item.mean_H_Ainv), fmtPercent(r.item.convex_fraction),
+      fmtPercent(r.item.concave_fraction), r.dsasa == null ? "–" : r.dsasa.toFixed(1)]) {
+      const td = document.createElement("td");
+      td.textContent = val;
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+  renderSelection();
+}
+document.getElementById("curvature-tbody").addEventListener("click", (e) => {
+  const tr = e.target.closest("tr[data-residue]");
+  if (!tr) return;
+  selectedResidues = [tr.dataset.residue];
+  renderSelection();
+  renderSurface();
+});
+document.getElementById("curvature-tbody").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") {
+    const tr = e.target.closest("tr[data-residue]");
+    if (tr) { e.preventDefault(); tr.click(); }
+  }
+});
+
+function meshColors(chain) {
+  const mesh = SURFACE.meshes[chain], h = mesh.h[scaleKey];
+  const colors = new Float32Array(h.length * 3);
+  const lim = SURFACE.report.color_limit_Ainv;
+  const partner = [...pairKey].find((c) => c !== chain);
+  const distance = pairKey.includes(chain) ? mesh.contact_distance_dA[partner] : null;
+  const padding = +document.getElementById("contact-padding").value * 10;
+  const grey = [157 / 255, 164 / 255, 172 / 255];
+  for (let i = 0; i < h.length; i++) {
+    if (!distance || distance[i] > padding) {
+      for (let k = 0; k < 3; k++) colors[3 * i + k] = grey[k];
+      continue;
+    }
+    const v = Math.max(0, Math.min(1, (h[i] / lim + 1) / 2));
+    let j = 0;
+    while (j < CURVATURE_COLORS.length - 2 && v > CURVATURE_COLORS[j + 1][0]) j++;
+    const [a, c1] = CURVATURE_COLORS[j], [b, c2] = CURVATURE_COLORS[j + 1];
+    const t = (v - a) / (b - a);
+    for (let k = 0; k < 3; k++) colors[3 * i + k] = (c1[k] + t * (c2[k] - c1[k])) / 255;
+  }
+  return colors;
+}
+function installMeshes() {
+  if (meshesInstalled) return;
+  for (const chain of ["A", "B", "C"]) {
+    const mesh = SURFACE.meshes[chain];
+    const shape = new NGL.Shape(`surface-${chain}`);
+    shape.addMesh(mesh.position, meshColors(chain), mesh.index, undefined,
+      `${SURFACE.report.scales[scaleKey].proteins[chain].name} surface`);
+    meshComponents[chain] = stage.addComponentFromObject(shape);
+    meshReps[chain] = meshComponents[chain].addRepresentation("buffer", {
+      opacity: 0.55, side: "double", metalness: 0, roughness: 1,
+    });
+  }
+  meshesInstalled = true;
+  meshColorKey = `${pairKey}:${scaleKey}:${document.getElementById("contact-padding").value}`;
+}
+function updateMeshColors() {
+  const key = `${pairKey}:${scaleKey}:${document.getElementById("contact-padding").value}`;
+  if (key === meshColorKey) return;
+  for (const chain of ["A", "B", "C"]) {
+    meshComponents[chain].object.bufferList[0].setAttributes({color: meshColors(chain)});
+  }
+  meshColorKey = key;
+}
+function selectedSummary() {
+  const detail = document.getElementById("selection-detail");
+  if (!selectedResidues.length) {
+    detail.textContent = "Select a residue in the cartoon, contact map, or interface table.";
+    return;
+  }
+  detail.textContent = selectedResidues.map((key) => {
+    const [chain, label] = key.split(":");
+    const whole = SURFACE.report.scales[scaleKey].proteins[chain].residues.find((r) => r.label === label);
+    const patch = SURFACE.report.scales[scaleKey].interfaces[pairKey][chain]?.residues.find((r) => r.label === label);
+    const name = SURFACE.report.scales[scaleKey].proteins[chain].name;
+    if (!whole) return `${name} ${label}: no surface vertices assigned`;
+    return `${name} ${label}: whole-surface H ${fmtH(whole.mean_H_Ainv)}, ${whole.area_A2.toFixed(1)} Å²`
+      + (patch ? `; ${pairKey} contact patch H ${fmtH(patch.mean_H_Ainv)}, ${patch.area_A2.toFixed(1)} Å²`
+               : `; no ${pairKey} contact patch`);
+  }).join("  |  ");
+}
+function updateMarkers() {
+  for (const comp of markerComponents) stage.removeComponent(comp);
+  markerComponents = [];
+  for (const key of selectedResidues) {
+    const [chain, label] = key.split(":");
+    const residue = SURFACE.report.scales[scaleKey].proteins[chain].residues.find((r) => r.label === label);
+    if (!residue) continue;
+    const shape = new NGL.Shape(`selected-${key}`);
+    shape.addSphere(residue.centroid, [1, 0.78, 0.08], 1.9, `${chain}:${label}`);
+    const comp = stage.addComponentFromObject(shape);
+    comp.addRepresentation("buffer", {opacity: 1});
+    comp.userChain = chain;
+    markerComponents.push(comp);
+  }
+}
+function renderSurface() {
+  const separation = +document.getElementById("separation").value;
+  document.getElementById("separation-value").value = `${separation.toFixed(1)} Å`;
+  const limit = SURFACE.report.color_limit_Ainv;
+  document.getElementById("color-min").textContent = `−${limit.toFixed(3)}`;
+  document.getElementById("color-max").textContent = `+${limit.toFixed(3)}`;
+  document.getElementById("colorbar-label").textContent = `H (Å⁻¹) · ${scaleKey} Å neighborhoods`;
+  document.getElementById("contact-padding-value").value =
+    `${(+document.getElementById("contact-padding").value).toFixed(1)} Å`;
+  selectedSummary();
+  if (hoverHit) showSurfaceTip(hoverHit);
+  if (Object.keys(structureComponents).length !== 3) return;
+  installMeshes();
+  updateMeshColors();
+  const direction = SURFACE.report.pair_directions[pairKey];
+  const opacity = +document.getElementById("surface-opacity").value;
+  for (const chain of ["A", "B", "C"]) {
+    const side = pairKey.indexOf(chain);
+    const shift = side < 0 ? 0 : (side === 0 ? -1 : 1) * separation / 2;
+    const position = direction.map((v) => v * shift);
+    structureComponents[chain].setPosition(position);
+    meshComponents[chain].setPosition(position);
+    structureComponents[chain].setVisibility(visibleChains[chain]);
+    meshComponents[chain].setVisibility(visibleChains[chain]);
+    cartoonReps[chain].setParameters({opacity: side < 0 ? 0.30 : 1});
+    meshReps[chain].setParameters({opacity: side < 0 ? opacity * 0.28 : opacity});
+  }
+  updateMarkers();
+  for (const comp of markerComponents) {
+    const chain = comp.userChain, side = pairKey.indexOf(chain);
+    const shift = side < 0 ? 0 : (side === 0 ? -1 : 1) * separation / 2;
+    comp.setPosition(direction.map((v) => v * shift));
+    comp.setVisibility(visibleChains[chain]);
+  }
+  stage.viewer.requestRender();
+}
+function initViewer() {
+  const source = new Blob([PDB_TEXT], {type: "text/plain"});
+  Promise.all(["A", "B", "C"].map(async (chain) => {
+    const comp = await stage.loadFile(source, {ext: "pdb", name: `${PAGE.pdb} chain ${chain}`});
+    structureComponents[chain] = comp;
+    cartoonReps[chain] = comp.addRepresentation("cartoon", {
+      sele: `:${chain}`, color: cartoonColors[chain], opacity: 1, quality: "medium",
+    });
+  })).then(() => {
+    stage.autoView();
+    renderSurface();
+  }).catch((err) => {
+    document.getElementById("surface-note").textContent = `NGL could not load the inline PDB: ${err}`;
+    console.error(err);
+  });
+}
+const surfaceTip = document.getElementById("surface-tip");
+let pointer = null;
+let hoverHit = null;
+function placeSurfaceTip() {
+  if (!pointer) return;
+  const x = Math.min(pointer.x + 16, window.innerWidth - surfaceTip.offsetWidth - 12);
+  const y = Math.min(pointer.y + 16, window.innerHeight - surfaceTip.offsetHeight - 12);
+  surfaceTip.style.left = `${Math.max(8, x)}px`;
+  surfaceTip.style.top = `${Math.max(8, y)}px`;
+}
+function hideSurfaceTip() {
+  hoverHit = null;
+  surfaceTip.classList.remove("on");
+  surfaceTip.setAttribute("aria-hidden", "true");
+}
+function showSurfaceTip(hit) {
+  hit.h = SURFACE.meshes[hit.chain].h[scaleKey][hit.vertex];
+  const name = SURFACE.report.scales[scaleKey].proteins[hit.chain].name;
+  surfaceTip.textContent = `${name} · chain ${hit.chain} · ${hit.label} · local H ${fmtH(hit.h)}`;
+  surfaceTip.classList.add("on");
+  surfaceTip.setAttribute("aria-hidden", "false");
+  placeSurfaceTip();
+}
+surfacePlot.addEventListener("pointermove", (event) => {
+  pointer = {x: event.clientX, y: event.clientY};
+  if (hoverHit) placeSurfaceTip();
+});
+surfacePlot.addEventListener("pointerleave", () => { pointer = null; hideSurfaceTip(); });
+
+function surfaceHit(pick) {
+  if (pick?.type !== "mesh" || !pick.component?.name?.startsWith("surface-")) return null;
+  const chain = pick.component.name.slice(-1);
+  if (!visibleChains[chain]) return null;
+  // NGL's mesh picking ID is the index of the picked surface vertex.
+  const vertex = pick.pid;
+  const mesh = SURFACE.meshes[chain];
+  if (!Number.isInteger(vertex) || vertex < 0 || vertex >= mesh.residue.length) return null;
+  return {chain, vertex, label: mesh.residue[vertex], h: mesh.h[scaleKey][vertex]};
+}
+stage.signals.hovered.add((pick) => {
+  const hit = surfaceHit(pick);
+  if (!hit) return hideSurfaceTip();
+  hoverHit = hit;
+  showSurfaceTip(hit);
+});
+stage.signals.clicked.add((pick) => {
+  const atom = pick?.atom;
+  let key = null;
+  if (atom && visibleChains[atom.chainname] && atom.resname in aa3to1) {
+    key = `${atom.chainname}:${aa3to1[atom.resname]}${atom.resno}`;
+  } else {
+    const hit = surfaceHit(pick);
+    if (hit) key = `${hit.chain}:${hit.label}`;
+  }
+  if (!key) return;
+  selectedResidues = [key];
+  renderSelection();
+  renderSurface();
+});
+document.getElementById("separation").addEventListener("input", renderSurface);
+document.getElementById("surface-opacity").addEventListener("input", renderSurface);
+document.getElementById("contact-padding").addEventListener("input", renderSurface);
+document.getElementById("resolution").addEventListener("change", (e) => {
+  scaleKey = e.target.value;
+  renderStats();
+  render();
+  renderSurface();
+});
+const chainToggles = document.getElementById("chain-toggles");
+for (const chain of ["A", "B", "C"]) {
+  const label = document.createElement("label");
+  const check = document.createElement("input");
+  check.type = "checkbox"; check.checked = true;
+  check.addEventListener("change", () => { visibleChains[chain] = check.checked; renderSurface(); });
+  label.append(check, ` ${chain} ${SURFACE.report.scales["6"].proteins[chain].name}`);
+  chainToggles.appendChild(label);
+}
+
+/* --- controls ------------------------------------------------------------- */
+function segment(host, items, get, set) {
+  host.textContent = "";
+  for (const [val, text] of items) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = text;
+    b.setAttribute("aria-pressed", String(get() === val));
+    b.addEventListener("click", () => {
+      set(val);
+      host.querySelectorAll("button").forEach((x, i) =>
+        x.setAttribute("aria-pressed", String(items[i][0] === get())));
+      hideTip();
+      render();
+    });
+    host.appendChild(b);
+  }
+}
+
+segment(document.getElementById("f-pair"),
+  Object.entries(PAIRS).map(([pair, data]) => [pair, `${data.rowName} × ${data.colName}`]),
+  () => pairKey, (v) => {
+    pairKey = v;
+    DATA = PAIRS[v];
+    cur = null;
+    renderStats();
+    renderSurface();
+  });
+segment(document.getElementById("f-cut"),
+  CUTOFFS.map((v) => [v, v.toFixed(1) + " Å"]),
+  () => state.cut, (v) => { state.cut = v; });
+segment(document.getElementById("f-type"), TYPES,
+  () => state.type, (v) => { state.type = v; });
+
+const themeItems = [["light", "Light"], ["dark", "Dark"], ["auto", "Auto"]];
+let theme = "auto";
+segment(document.getElementById("f-theme"), themeItems, () => theme, (v) => {
+  theme = v;
+  if (v === "auto") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", v);
+});
+
+document.getElementById("f-vals").addEventListener("change", (e) => {
+  state.vals = e.target.checked; render();
+});
+document.getElementById("f-sasa").addEventListener("change", (e) => {
+  state.sasa = e.target.checked; render();
+});
+
+const legDist = document.getElementById("leg-dist");
+BIN_LABEL.forEach((t, i) => {
+  const d = document.createElement("div");
+  const sw = document.createElement("i");
+  sw.style.background = `var(--d${i})`;
+  const s = document.createElement("small");
+  s.textContent = t;
+  d.append(sw, s);
+  legDist.appendChild(d);
+});
+
+renderStats();
+render();
+renderSurface();
+initViewer();
+new MutationObserver(() => { render(); renderSurface(); }).observe(document.documentElement, {
+  attributes: true, attributeFilter: ["data-theme"],
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,3534 @@
+{
+  "AB": {
+    "name": "IL-4(A) - IL-4Ra(B)",
+    "buried_surface_area_A2": 673.0,
+    "total_dSASA_A2": 1346.0,
+    "n_residue_pairs": 41,
+    "n_interface_residues": 33,
+    "n_hbond_like": 14,
+    "n_saltbridge": 9,
+    "residues": [
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 88,
+        "resname": "ARG",
+        "label": "R88",
+        "dSASA": 129.3,
+        "sasa_free": 162.2,
+        "n_contacts": 69,
+        "n_tight": 15,
+        "min_dist": 2.5,
+        "n_hbond": 4,
+        "n_saltbridge": 4,
+        "partners": [
+          "A71",
+          "D67",
+          "D72",
+          "F41",
+          "L39",
+          "V68",
+          "V69"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 127,
+        "resname": "TYR",
+        "label": "Y127",
+        "dSASA": 116.0,
+        "sasa_free": 124.7,
+        "n_contacts": 98,
+        "n_tight": 30,
+        "min_dist": 2.66,
+        "n_hbond": 1,
+        "n_saltbridge": 0,
+        "partners": [
+          "E9",
+          "I10",
+          "K12",
+          "N89",
+          "R85",
+          "T13"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 41,
+        "resname": "PHE",
+        "label": "F41",
+        "dSASA": 102.4,
+        "sasa_free": 152.0,
+        "n_contacts": 47,
+        "n_tight": 9,
+        "min_dist": 3.33,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "D87",
+          "R53",
+          "R88",
+          "W91"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 85,
+        "resname": "ARG",
+        "label": "R85",
+        "dSASA": 95.1,
+        "sasa_free": 107.3,
+        "n_contacts": 55,
+        "n_tight": 21,
+        "min_dist": 2.8,
+        "n_hbond": 1,
+        "n_saltbridge": 4,
+        "partners": [
+          "D125",
+          "D67",
+          "N126",
+          "V68",
+          "V69",
+          "Y127"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 9,
+        "resname": "GLU",
+        "label": "E9",
+        "dSASA": 88.4,
+        "sasa_free": 90.4,
+        "n_contacts": 95,
+        "n_tight": 39,
+        "min_dist": 2.34,
+        "n_hbond": 4,
+        "n_saltbridge": 0,
+        "partners": [
+          "S70",
+          "V69",
+          "Y127",
+          "Y13",
+          "Y183"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 67,
+        "resname": "ASP",
+        "label": "D67",
+        "dSASA": 81.8,
+        "sasa_free": 107.7,
+        "n_contacts": 37,
+        "n_tight": 18,
+        "min_dist": 2.73,
+        "n_hbond": 3,
+        "n_saltbridge": 6,
+        "partners": [
+          "R81",
+          "R85",
+          "R88"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 5,
+        "resname": "ILE",
+        "label": "I5",
+        "dSASA": 81.1,
+        "sasa_free": 115.6,
+        "n_contacts": 36,
+        "n_tight": 12,
+        "min_dist": 3.21,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "C182",
+          "H131",
+          "Y183"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 12,
+        "resname": "LYS",
+        "label": "K12",
+        "dSASA": 79.3,
+        "sasa_free": 147.5,
+        "n_contacts": 27,
+        "n_tight": 5,
+        "min_dist": 3.44,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "D125",
+          "N126",
+          "P124",
+          "Y127"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 125,
+        "resname": "ASP",
+        "label": "D125",
+        "dSASA": 56.2,
+        "sasa_free": 125.9,
+        "n_contacts": 15,
+        "n_tight": 2,
+        "min_dist": 3.7,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "F82",
+          "K12",
+          "R85"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 70,
+        "resname": "SER",
+        "label": "S70",
+        "dSASA": 53.3,
+        "sasa_free": 67.1,
+        "n_contacts": 35,
+        "n_tight": 12,
+        "min_dist": 2.63,
+        "n_hbond": 2,
+        "n_saltbridge": 0,
+        "partners": [
+          "E9",
+          "N89",
+          "T6"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 69,
+        "resname": "VAL",
+        "label": "V69",
+        "dSASA": 50.3,
+        "sasa_free": 50.3,
+        "n_contacts": 47,
+        "n_tight": 13,
+        "min_dist": 3.48,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "E9",
+          "N89",
+          "R85",
+          "R88"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 71,
+        "resname": "ALA",
+        "label": "A71",
+        "dSASA": 46.5,
+        "sasa_free": 75.1,
+        "n_contacts": 17,
+        "n_tight": 4,
+        "min_dist": 3.3,
+        "n_hbond": 1,
+        "n_saltbridge": 0,
+        "partners": [
+          "G92",
+          "N89",
+          "R88",
+          "T6"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 183,
+        "resname": "TYR",
+        "label": "Y183",
+        "dSASA": 41.8,
+        "sasa_free": 50.9,
+        "n_contacts": 42,
+        "n_tight": 14,
+        "min_dist": 2.34,
+        "n_hbond": 1,
+        "n_saltbridge": 0,
+        "partners": [
+          "E9",
+          "I5"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 89,
+        "resname": "ASN",
+        "label": "N89",
+        "dSASA": 37.7,
+        "sasa_free": 38.8,
+        "n_contacts": 39,
+        "n_tight": 10,
+        "min_dist": 3.3,
+        "n_hbond": 1,
+        "n_saltbridge": 0,
+        "partners": [
+          "A71",
+          "S70",
+          "V69",
+          "Y127"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 81,
+        "resname": "ARG",
+        "label": "R81",
+        "dSASA": 35.9,
+        "sasa_free": 123.5,
+        "n_contacts": 13,
+        "n_tight": 4,
+        "min_dist": 2.73,
+        "n_hbond": 1,
+        "n_saltbridge": 1,
+        "partners": [
+          "D66",
+          "D67"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 131,
+        "resname": "HIS",
+        "label": "H131",
+        "dSASA": 30.9,
+        "sasa_free": 72.6,
+        "n_contacts": 9,
+        "n_tight": 3,
+        "min_dist": 3.36,
+        "n_hbond": 1,
+        "n_saltbridge": 0,
+        "partners": [
+          "I5",
+          "Q8"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 8,
+        "resname": "GLN",
+        "label": "Q8",
+        "dSASA": 30.5,
+        "sasa_free": 100.1,
+        "n_contacts": 8,
+        "n_tight": 3,
+        "min_dist": 3.36,
+        "n_hbond": 1,
+        "n_saltbridge": 0,
+        "partners": [
+          "H131"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 182,
+        "resname": "CYS",
+        "label": "C182",
+        "dSASA": 26.0,
+        "sasa_free": 74.4,
+        "n_contacts": 5,
+        "n_tight": 3,
+        "min_dist": 3.21,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "I5"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 72,
+        "resname": "ASP",
+        "label": "D72",
+        "dSASA": 20.6,
+        "sasa_free": 23.8,
+        "n_contacts": 16,
+        "n_tight": 7,
+        "min_dist": 2.5,
+        "n_hbond": 3,
+        "n_saltbridge": 3,
+        "partners": [
+          "R88"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 6,
+        "resname": "THR",
+        "label": "T6",
+        "dSASA": 20.4,
+        "sasa_free": 30.0,
+        "n_contacts": 13,
+        "n_tight": 3,
+        "min_dist": 2.63,
+        "n_hbond": 1,
+        "n_saltbridge": 0,
+        "partners": [
+          "A71",
+          "S70"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 91,
+        "resname": "TRP",
+        "label": "W91",
+        "dSASA": 20.0,
+        "sasa_free": 71.1,
+        "n_contacts": 14,
+        "n_tight": 3,
+        "min_dist": 3.33,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "F41"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 82,
+        "resname": "PHE",
+        "label": "F82",
+        "dSASA": 16.7,
+        "sasa_free": 35.2,
+        "n_contacts": 4,
+        "n_tight": 0,
+        "min_dist": 4.7,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "D125"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 39,
+        "resname": "LEU",
+        "label": "L39",
+        "dSASA": 15.6,
+        "sasa_free": 41.3,
+        "n_contacts": 8,
+        "n_tight": 1,
+        "min_dist": 3.89,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "R88"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 53,
+        "resname": "ARG",
+        "label": "R53",
+        "dSASA": 13.0,
+        "sasa_free": 68.6,
+        "n_contacts": 9,
+        "n_tight": 2,
+        "min_dist": 3.35,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "F41"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 124,
+        "resname": "PRO",
+        "label": "P124",
+        "dSASA": 12.5,
+        "sasa_free": 105.6,
+        "n_contacts": 3,
+        "n_tight": 1,
+        "min_dist": 3.61,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "K12"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 13,
+        "resname": "THR",
+        "label": "T13",
+        "dSASA": 11.9,
+        "sasa_free": 15.5,
+        "n_contacts": 11,
+        "n_tight": 4,
+        "min_dist": 2.66,
+        "n_hbond": 1,
+        "n_saltbridge": 0,
+        "partners": [
+          "Y127"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 92,
+        "resname": "GLY",
+        "label": "G92",
+        "dSASA": 9.4,
+        "sasa_free": 56.5,
+        "n_contacts": 2,
+        "n_tight": 0,
+        "min_dist": 4.3,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "A71"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 126,
+        "resname": "ASN",
+        "label": "N126",
+        "dSASA": 8.5,
+        "sasa_free": 20.8,
+        "n_contacts": 6,
+        "n_tight": 1,
+        "min_dist": 3.76,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "K12",
+          "R85"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 87,
+        "resname": "ASP",
+        "label": "D87",
+        "dSASA": 8.0,
+        "sasa_free": 8.1,
+        "n_contacts": 6,
+        "n_tight": 2,
+        "min_dist": 3.6,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "F41"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 66,
+        "resname": "ASP",
+        "label": "D66",
+        "dSASA": 4.4,
+        "sasa_free": 160.2,
+        "n_contacts": 1,
+        "n_tight": 0,
+        "min_dist": 4.63,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "R81"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 68,
+        "resname": "VAL",
+        "label": "V68",
+        "dSASA": 2.1,
+        "sasa_free": 6.9,
+        "n_contacts": 4,
+        "n_tight": 0,
+        "min_dist": 4.47,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "R85",
+          "R88"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 13,
+        "resname": "TYR",
+        "label": "Y13",
+        "dSASA": 0.4,
+        "sasa_free": 7.5,
+        "n_contacts": 12,
+        "n_tight": 5,
+        "min_dist": 2.56,
+        "n_hbond": 2,
+        "n_saltbridge": 0,
+        "partners": [
+          "E9"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 10,
+        "resname": "ILE",
+        "label": "I10",
+        "dSASA": 0.0,
+        "sasa_free": 1.1,
+        "n_contacts": 1,
+        "n_tight": 0,
+        "min_dist": 4.9,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "Y127"
+        ]
+      }
+    ],
+    "pairs": [
+      {
+        "r1": "A:E9",
+        "r2": "B:Y183",
+        "min_dist": 2.34,
+        "n_contacts": 12,
+        "hbonds": [
+          [
+            "OE2",
+            "OH",
+            2.34
+          ]
+        ],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R88",
+        "r2": "B:D72",
+        "min_dist": 2.5,
+        "n_contacts": 16,
+        "hbonds": [
+          [
+            "NE",
+            "OD1",
+            2.5
+          ],
+          [
+            "NE",
+            "OD2",
+            3.35
+          ],
+          [
+            "NH2",
+            "OD2",
+            3.44
+          ]
+        ],
+        "saltbridges": [
+          [
+            "NE",
+            "OD1",
+            2.5
+          ],
+          [
+            "NE",
+            "OD2",
+            3.35
+          ],
+          [
+            "NH2",
+            "OD2",
+            3.44
+          ]
+        ]
+      },
+      {
+        "r1": "A:E9",
+        "r2": "B:Y13",
+        "min_dist": 2.56,
+        "n_contacts": 12,
+        "hbonds": [
+          [
+            "OE1",
+            "OH",
+            3.26
+          ],
+          [
+            "OE2",
+            "OH",
+            2.56
+          ]
+        ],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:T6",
+        "r2": "B:S70",
+        "min_dist": 2.63,
+        "n_contacts": 12,
+        "hbonds": [
+          [
+            "OG1",
+            "OG",
+            2.63
+          ]
+        ],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:T13",
+        "r2": "B:Y127",
+        "min_dist": 2.66,
+        "n_contacts": 11,
+        "hbonds": [
+          [
+            "OG1",
+            "OH",
+            2.66
+          ]
+        ],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R81",
+        "r2": "B:D67",
+        "min_dist": 2.73,
+        "n_contacts": 12,
+        "hbonds": [
+          [
+            "NH2",
+            "OD2",
+            2.73
+          ]
+        ],
+        "saltbridges": [
+          [
+            "NH2",
+            "OD2",
+            2.73
+          ]
+        ]
+      },
+      {
+        "r1": "A:E9",
+        "r2": "B:S70",
+        "min_dist": 2.8,
+        "n_contacts": 13,
+        "hbonds": [
+          [
+            "OE1",
+            "N",
+            2.8
+          ]
+        ],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R85",
+        "r2": "B:D67",
+        "min_dist": 2.8,
+        "n_contacts": 19,
+        "hbonds": [
+          [
+            "NE",
+            "OD2",
+            2.8
+          ]
+        ],
+        "saltbridges": [
+          [
+            "NE",
+            "OD1",
+            3.59
+          ],
+          [
+            "NE",
+            "OD2",
+            2.8
+          ],
+          [
+            "NH1",
+            "OD2",
+            3.56
+          ],
+          [
+            "NH2",
+            "OD2",
+            3.59
+          ]
+        ]
+      },
+      {
+        "r1": "A:I5",
+        "r2": "B:C182",
+        "min_dist": 3.21,
+        "n_contacts": 5,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:E9",
+        "r2": "B:Y127",
+        "min_dist": 3.23,
+        "n_contacts": 50,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:I5",
+        "r2": "B:Y183",
+        "min_dist": 3.3,
+        "n_contacts": 30,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:N89",
+        "r2": "B:A71",
+        "min_dist": 3.3,
+        "n_contacts": 10,
+        "hbonds": [
+          [
+            "OD1",
+            "N",
+            3.3
+          ]
+        ],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:W91",
+        "r2": "B:F41",
+        "min_dist": 3.33,
+        "n_contacts": 14,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R53",
+        "r2": "B:F41",
+        "min_dist": 3.35,
+        "n_contacts": 9,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R88",
+        "r2": "B:D67",
+        "min_dist": 3.36,
+        "n_contacts": 6,
+        "hbonds": [
+          [
+            "NH2",
+            "O",
+            3.36
+          ]
+        ],
+        "saltbridges": [
+          [
+            "NH2",
+            "OD1",
+            3.68
+          ]
+        ]
+      },
+      {
+        "r1": "A:Q8",
+        "r2": "B:H131",
+        "min_dist": 3.36,
+        "n_contacts": 8,
+        "hbonds": [
+          [
+            "OE1",
+            "NE2",
+            3.36
+          ]
+        ],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R88",
+        "r2": "B:A71",
+        "min_dist": 3.43,
+        "n_contacts": 4,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:K12",
+        "r2": "B:Y127",
+        "min_dist": 3.44,
+        "n_contacts": 13,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:N89",
+        "r2": "B:V69",
+        "min_dist": 3.48,
+        "n_contacts": 16,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:N89",
+        "r2": "B:S70",
+        "min_dist": 3.57,
+        "n_contacts": 10,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R85",
+        "r2": "B:V69",
+        "min_dist": 3.6,
+        "n_contacts": 9,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:D87",
+        "r2": "B:F41",
+        "min_dist": 3.6,
+        "n_contacts": 6,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:K12",
+        "r2": "B:P124",
+        "min_dist": 3.61,
+        "n_contacts": 3,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R85",
+        "r2": "B:D125",
+        "min_dist": 3.7,
+        "n_contacts": 5,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R85",
+        "r2": "B:Y127",
+        "min_dist": 3.71,
+        "n_contacts": 20,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:K12",
+        "r2": "B:N126",
+        "min_dist": 3.76,
+        "n_contacts": 5,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:E9",
+        "r2": "B:V69",
+        "min_dist": 3.8,
+        "n_contacts": 8,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R88",
+        "r2": "B:L39",
+        "min_dist": 3.89,
+        "n_contacts": 8,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:K12",
+        "r2": "B:D125",
+        "min_dist": 3.9,
+        "n_contacts": 6,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R88",
+        "r2": "B:V69",
+        "min_dist": 3.91,
+        "n_contacts": 14,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R88",
+        "r2": "B:F41",
+        "min_dist": 3.94,
+        "n_contacts": 18,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:N89",
+        "r2": "B:Y127",
+        "min_dist": 4.22,
+        "n_contacts": 3,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:G92",
+        "r2": "B:A71",
+        "min_dist": 4.3,
+        "n_contacts": 2,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R88",
+        "r2": "B:V68",
+        "min_dist": 4.47,
+        "n_contacts": 3,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R81",
+        "r2": "B:D66",
+        "min_dist": 4.63,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:F82",
+        "r2": "B:D125",
+        "min_dist": 4.7,
+        "n_contacts": 4,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R85",
+        "r2": "B:V68",
+        "min_dist": 4.88,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:I10",
+        "r2": "B:Y127",
+        "min_dist": 4.9,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:I5",
+        "r2": "B:H131",
+        "min_dist": 4.94,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R85",
+        "r2": "B:N126",
+        "min_dist": 4.94,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:T6",
+        "r2": "B:A71",
+        "min_dist": 4.96,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      }
+    ]
+  },
+  "AC": {
+    "name": "IL-4(A) - IL-13Ra1(C)",
+    "buried_surface_area_A2": 823.0,
+    "total_dSASA_A2": 1645.0,
+    "n_residue_pairs": 55,
+    "n_interface_residues": 48,
+    "n_hbond_like": 18,
+    "n_saltbridge": 7,
+    "residues": [
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 256,
+        "resname": "ARG",
+        "label": "R256",
+        "dSASA": 118.9,
+        "sasa_free": 189.2,
+        "n_contacts": 83,
+        "n_tight": 27,
+        "min_dist": 2.47,
+        "n_hbond": 6,
+        "n_saltbridge": 0,
+        "partners": [
+          "C127",
+          "C3",
+          "K123",
+          "K126",
+          "S125",
+          "S128",
+          "Y124"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 319,
+        "resname": "LEU",
+        "label": "L319",
+        "dSASA": 118.2,
+        "sasa_free": 142.6,
+        "n_contacts": 71,
+        "n_tight": 14,
+        "min_dist": 3.18,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "I11",
+          "N15",
+          "Q8",
+          "R121",
+          "Y124"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 121,
+        "resname": "ARG",
+        "label": "R121",
+        "dSASA": 93.6,
+        "sasa_free": 104.6,
+        "n_contacts": 98,
+        "n_tight": 29,
+        "min_dist": 2.77,
+        "n_hbond": 4,
+        "n_saltbridge": 4,
+        "partners": [
+          "C320",
+          "E322",
+          "K318",
+          "L319",
+          "T223",
+          "Y321"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 124,
+        "resname": "TYR",
+        "label": "Y124",
+        "dSASA": 84.3,
+        "sasa_free": 110.4,
+        "n_contacts": 62,
+        "n_tight": 17,
+        "min_dist": 2.53,
+        "n_hbond": 1,
+        "n_saltbridge": 0,
+        "partners": [
+          "C320",
+          "L319",
+          "R256"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 106,
+        "resname": "GLN",
+        "label": "Q106",
+        "dSASA": 76.1,
+        "sasa_free": 88.9,
+        "n_contacts": 44,
+        "n_tight": 12,
+        "min_dist": 3.01,
+        "n_hbond": 3,
+        "n_saltbridge": 0,
+        "partners": [
+          "I78",
+          "K77",
+          "T104"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 76,
+        "resname": "LYS",
+        "label": "K76",
+        "dSASA": 76.0,
+        "sasa_free": 119.0,
+        "n_contacts": 32,
+        "n_tight": 8,
+        "min_dist": 3.37,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "E26",
+          "S107",
+          "T108",
+          "T28"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 322,
+        "resname": "GLU",
+        "label": "E322",
+        "dSASA": 64.4,
+        "sasa_free": 106.9,
+        "n_contacts": 46,
+        "n_tight": 22,
+        "min_dist": 2.77,
+        "n_hbond": 6,
+        "n_saltbridge": 6,
+        "partners": [
+          "E114",
+          "K117",
+          "N15",
+          "R121"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 125,
+        "resname": "SER",
+        "label": "S125",
+        "dSASA": 61.8,
+        "sasa_free": 85.6,
+        "n_contacts": 30,
+        "n_tight": 7,
+        "min_dist": 3.17,
+        "n_hbond": 1,
+        "n_saltbridge": 0,
+        "partners": [
+          "C257",
+          "C320",
+          "I254",
+          "R256"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 78,
+        "resname": "ILE",
+        "label": "I78",
+        "dSASA": 61.1,
+        "sasa_free": 69.8,
+        "n_contacts": 40,
+        "n_tight": 12,
+        "min_dist": 3.01,
+        "n_hbond": 3,
+        "n_saltbridge": 0,
+        "partners": [
+          "N105",
+          "Q106",
+          "S107",
+          "T28"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 104,
+        "resname": "THR",
+        "label": "T104",
+        "dSASA": 55.4,
+        "sasa_free": 80.6,
+        "n_contacts": 11,
+        "n_tight": 2,
+        "min_dist": 3.92,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "A104",
+          "E103",
+          "Q106"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 26,
+        "resname": "GLU",
+        "label": "E26",
+        "dSASA": 55.1,
+        "sasa_free": 120.5,
+        "n_contacts": 16,
+        "n_tight": 5,
+        "min_dist": 3.46,
+        "n_hbond": 1,
+        "n_saltbridge": 0,
+        "partners": [
+          "K73",
+          "K76",
+          "Q74"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 318,
+        "resname": "LYS",
+        "label": "K318",
+        "dSASA": 54.5,
+        "sasa_free": 119.5,
+        "n_contacts": 34,
+        "n_tight": 9,
+        "min_dist": 3.03,
+        "n_hbond": 2,
+        "n_saltbridge": 0,
+        "partners": [
+          "I11",
+          "N15",
+          "R121"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 199,
+        "resname": "GLN",
+        "label": "Q199",
+        "dSASA": 53.4,
+        "sasa_free": 189.2,
+        "n_contacts": 6,
+        "n_tight": 0,
+        "min_dist": 4.13,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "E114",
+          "R115",
+          "T118"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 105,
+        "resname": "ASN",
+        "label": "N105",
+        "dSASA": 50.5,
+        "sasa_free": 80.0,
+        "n_contacts": 23,
+        "n_tight": 6,
+        "min_dist": 3.47,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "A79",
+          "E81",
+          "I78",
+          "P80",
+          "W65"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 108,
+        "resname": "THR",
+        "label": "T108",
+        "dSASA": 42.8,
+        "sasa_free": 51.0,
+        "n_contacts": 20,
+        "n_tight": 5,
+        "min_dist": 3.37,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "D75",
+          "K76"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 104,
+        "resname": "ALA",
+        "label": "A104",
+        "dSASA": 39.3,
+        "sasa_free": 75.7,
+        "n_contacts": 11,
+        "n_tight": 3,
+        "min_dist": 3.15,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "T104",
+          "W65"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 320,
+        "resname": "CYS",
+        "label": "C320",
+        "dSASA": 38.8,
+        "sasa_free": 56.8,
+        "n_contacts": 29,
+        "n_tight": 3,
+        "min_dist": 3.71,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "R121",
+          "S125",
+          "Y124"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 8,
+        "resname": "GLN",
+        "label": "Q8",
+        "dSASA": 33.5,
+        "sasa_free": 100.1,
+        "n_contacts": 14,
+        "n_tight": 1,
+        "min_dist": 3.79,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "E279",
+          "L319"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 28,
+        "resname": "THR",
+        "label": "T28",
+        "dSASA": 31.6,
+        "sasa_free": 73.8,
+        "n_contacts": 7,
+        "n_tight": 1,
+        "min_dist": 3.93,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "I78",
+          "K76",
+          "K77"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 103,
+        "resname": "GLU",
+        "label": "E103",
+        "dSASA": 30.8,
+        "sasa_free": 125.6,
+        "n_contacts": 6,
+        "n_tight": 1,
+        "min_dist": 3.92,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "T104",
+          "W65"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 15,
+        "resname": "ASN",
+        "label": "N15",
+        "dSASA": 28.9,
+        "sasa_free": 50.9,
+        "n_contacts": 21,
+        "n_tight": 5,
+        "min_dist": 3.03,
+        "n_hbond": 1,
+        "n_saltbridge": 0,
+        "partners": [
+          "E322",
+          "K318",
+          "L319"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 118,
+        "resname": "THR",
+        "label": "T118",
+        "dSASA": 28.8,
+        "sasa_free": 77.1,
+        "n_contacts": 3,
+        "n_tight": 0,
+        "min_dist": 4.13,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "Q199"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 65,
+        "resname": "TRP",
+        "label": "W65",
+        "dSASA": 28.6,
+        "sasa_free": 79.9,
+        "n_contacts": 12,
+        "n_tight": 2,
+        "min_dist": 3.15,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "A104",
+          "E103",
+          "N105"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 77,
+        "resname": "LYS",
+        "label": "K77",
+        "dSASA": 28.2,
+        "sasa_free": 80.7,
+        "n_contacts": 16,
+        "n_tight": 3,
+        "min_dist": 3.46,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "Q106",
+          "S107",
+          "T28"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 106,
+        "resname": "GLU",
+        "label": "E106",
+        "dSASA": 25.9,
+        "sasa_free": 176.5,
+        "n_contacts": 5,
+        "n_tight": 1,
+        "min_dist": 3.79,
+        "n_hbond": 0,
+        "n_saltbridge": 1,
+        "partners": [
+          "R64"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 75,
+        "resname": "ASP",
+        "label": "D75",
+        "dSASA": 23.9,
+        "sasa_free": 76.4,
+        "n_contacts": 9,
+        "n_tight": 2,
+        "min_dist": 3.57,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "N111",
+          "T108"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 64,
+        "resname": "ARG",
+        "label": "R64",
+        "dSASA": 23.6,
+        "sasa_free": 180.2,
+        "n_contacts": 5,
+        "n_tight": 1,
+        "min_dist": 3.79,
+        "n_hbond": 0,
+        "n_saltbridge": 1,
+        "partners": [
+          "E106"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 11,
+        "resname": "ILE",
+        "label": "I11",
+        "dSASA": 22.0,
+        "sasa_free": 23.7,
+        "n_contacts": 16,
+        "n_tight": 5,
+        "min_dist": 3.66,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "K318",
+          "L319"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 114,
+        "resname": "GLU",
+        "label": "E114",
+        "dSASA": 22.0,
+        "sasa_free": 70.3,
+        "n_contacts": 7,
+        "n_tight": 1,
+        "min_dist": 3.26,
+        "n_hbond": 1,
+        "n_saltbridge": 0,
+        "partners": [
+          "E322",
+          "Q199"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 74,
+        "resname": "GLN",
+        "label": "Q74",
+        "dSASA": 20.4,
+        "sasa_free": 133.4,
+        "n_contacts": 4,
+        "n_tight": 1,
+        "min_dist": 3.46,
+        "n_hbond": 1,
+        "n_saltbridge": 0,
+        "partners": [
+          "E26"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 254,
+        "resname": "ILE",
+        "label": "I254",
+        "dSASA": 19.9,
+        "sasa_free": 99.0,
+        "n_contacts": 5,
+        "n_tight": 1,
+        "min_dist": 3.52,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "S125"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 117,
+        "resname": "LYS",
+        "label": "K117",
+        "dSASA": 15.2,
+        "sasa_free": 22.2,
+        "n_contacts": 9,
+        "n_tight": 6,
+        "min_dist": 3.0,
+        "n_hbond": 2,
+        "n_saltbridge": 2,
+        "partners": [
+          "E322"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 127,
+        "resname": "CYS",
+        "label": "C127",
+        "dSASA": 13.1,
+        "sasa_free": 38.8,
+        "n_contacts": 17,
+        "n_tight": 9,
+        "min_dist": 2.47,
+        "n_hbond": 3,
+        "n_saltbridge": 0,
+        "partners": [
+          "R256"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 107,
+        "resname": "SER",
+        "label": "S107",
+        "dSASA": 12.5,
+        "sasa_free": 17.6,
+        "n_contacts": 11,
+        "n_tight": 0,
+        "min_dist": 4.05,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "I78",
+          "K76",
+          "K77"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 128,
+        "resname": "SER",
+        "label": "S128",
+        "dSASA": 11.9,
+        "sasa_free": 152.4,
+        "n_contacts": 10,
+        "n_tight": 2,
+        "min_dist": 3.27,
+        "n_hbond": 1,
+        "n_saltbridge": 0,
+        "partners": [
+          "R256"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 279,
+        "resname": "GLU",
+        "label": "E279",
+        "dSASA": 11.6,
+        "sasa_free": 159.6,
+        "n_contacts": 1,
+        "n_tight": 0,
+        "min_dist": 4.94,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "Q8"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 257,
+        "resname": "CYS",
+        "label": "C257",
+        "dSASA": 11.1,
+        "sasa_free": 15.9,
+        "n_contacts": 3,
+        "n_tight": 1,
+        "min_dist": 3.5,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "S125"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 115,
+        "resname": "ARG",
+        "label": "R115",
+        "dSASA": 11.0,
+        "sasa_free": 101.2,
+        "n_contacts": 1,
+        "n_tight": 0,
+        "min_dist": 4.65,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "Q199"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 80,
+        "resname": "PRO",
+        "label": "P80",
+        "dSASA": 9.6,
+        "sasa_free": 61.1,
+        "n_contacts": 5,
+        "n_tight": 1,
+        "min_dist": 3.75,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "N105"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 81,
+        "resname": "GLU",
+        "label": "E81",
+        "dSASA": 7.5,
+        "sasa_free": 98.4,
+        "n_contacts": 2,
+        "n_tight": 1,
+        "min_dist": 3.78,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "N105"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 79,
+        "resname": "ALA",
+        "label": "A79",
+        "dSASA": 7.4,
+        "sasa_free": 12.6,
+        "n_contacts": 7,
+        "n_tight": 1,
+        "min_dist": 3.47,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "N105"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 321,
+        "resname": "TYR",
+        "label": "Y321",
+        "dSASA": 7.3,
+        "sasa_free": 33.6,
+        "n_contacts": 18,
+        "n_tight": 6,
+        "min_dist": 3.32,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "R121"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 223,
+        "resname": "THR",
+        "label": "T223",
+        "dSASA": 5.6,
+        "sasa_free": 55.5,
+        "n_contacts": 1,
+        "n_tight": 0,
+        "min_dist": 4.82,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "R121"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 111,
+        "resname": "ASN",
+        "label": "N111",
+        "dSASA": 5.2,
+        "sasa_free": 41.7,
+        "n_contacts": 1,
+        "n_tight": 0,
+        "min_dist": 4.97,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "D75"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 73,
+        "resname": "LYS",
+        "label": "K73",
+        "dSASA": 3.5,
+        "sasa_free": 121.1,
+        "n_contacts": 1,
+        "n_tight": 0,
+        "min_dist": 4.6,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "E26"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 3,
+        "resname": "CYS",
+        "label": "C3",
+        "dSASA": 0.5,
+        "sasa_free": 92.6,
+        "n_contacts": 1,
+        "n_tight": 0,
+        "min_dist": 4.76,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "R256"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 126,
+        "resname": "LYS",
+        "label": "K126",
+        "dSASA": 0.0,
+        "sasa_free": 153.2,
+        "n_contacts": 7,
+        "n_tight": 1,
+        "min_dist": 3.89,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "R256"
+        ]
+      },
+      {
+        "chain": "A",
+        "protein": "IL-4",
+        "resid": 123,
+        "resname": "LYS",
+        "label": "K123",
+        "dSASA": 0.0,
+        "sasa_free": 51.7,
+        "n_contacts": 1,
+        "n_tight": 0,
+        "min_dist": 4.72,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "R256"
+        ]
+      }
+    ],
+    "pairs": [
+      {
+        "r1": "A:C127",
+        "r2": "C:R256",
+        "min_dist": 2.47,
+        "n_contacts": 17,
+        "hbonds": [
+          [
+            "N",
+            "NH1",
+            3.38
+          ],
+          [
+            "O",
+            "NH1",
+            2.69
+          ],
+          [
+            "O",
+            "NH2",
+            2.47
+          ]
+        ],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:Y124",
+        "r2": "C:R256",
+        "min_dist": 2.53,
+        "n_contacts": 31,
+        "hbonds": [
+          [
+            "O",
+            "NH1",
+            2.53
+          ]
+        ],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R121",
+        "r2": "C:E322",
+        "min_dist": 2.77,
+        "n_contacts": 31,
+        "hbonds": [
+          [
+            "NH1",
+            "N",
+            3.48
+          ],
+          [
+            "NH1",
+            "OE1",
+            2.77
+          ],
+          [
+            "NH2",
+            "OE2",
+            3.49
+          ]
+        ],
+        "saltbridges": [
+          [
+            "NH1",
+            "OE1",
+            2.77
+          ],
+          [
+            "NH1",
+            "OE2",
+            3.78
+          ],
+          [
+            "NH2",
+            "OE1",
+            3.78
+          ],
+          [
+            "NH2",
+            "OE2",
+            3.49
+          ]
+        ]
+      },
+      {
+        "r1": "A:K117",
+        "r2": "C:E322",
+        "min_dist": 3.0,
+        "n_contacts": 9,
+        "hbonds": [
+          [
+            "NZ",
+            "OE1",
+            3.14
+          ],
+          [
+            "NZ",
+            "OE2",
+            3.0
+          ]
+        ],
+        "saltbridges": [
+          [
+            "NZ",
+            "OE1",
+            3.14
+          ],
+          [
+            "NZ",
+            "OE2",
+            3.0
+          ]
+        ]
+      },
+      {
+        "r1": "A:Q106",
+        "r2": "C:I78",
+        "min_dist": 3.01,
+        "n_contacts": 31,
+        "hbonds": [
+          [
+            "N",
+            "O",
+            3.01
+          ],
+          [
+            "O",
+            "N",
+            3.06
+          ],
+          [
+            "O",
+            "O",
+            3.23
+          ]
+        ],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:N15",
+        "r2": "C:K318",
+        "min_dist": 3.03,
+        "n_contacts": 18,
+        "hbonds": [
+          [
+            "ND2",
+            "O",
+            3.03
+          ]
+        ],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:A104",
+        "r2": "C:W65",
+        "min_dist": 3.15,
+        "n_contacts": 9,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R121",
+        "r2": "C:K318",
+        "min_dist": 3.16,
+        "n_contacts": 14,
+        "hbonds": [
+          [
+            "NE",
+            "O",
+            3.16
+          ]
+        ],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:S125",
+        "r2": "C:R256",
+        "min_dist": 3.17,
+        "n_contacts": 16,
+        "hbonds": [
+          [
+            "O",
+            "NH1",
+            3.17
+          ]
+        ],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R121",
+        "r2": "C:L319",
+        "min_dist": 3.18,
+        "n_contacts": 15,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:Y124",
+        "r2": "C:L319",
+        "min_dist": 3.25,
+        "n_contacts": 27,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:E114",
+        "r2": "C:E322",
+        "min_dist": 3.26,
+        "n_contacts": 5,
+        "hbonds": [
+          [
+            "OE2",
+            "OE1",
+            3.26
+          ]
+        ],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:S128",
+        "r2": "C:R256",
+        "min_dist": 3.27,
+        "n_contacts": 10,
+        "hbonds": [
+          [
+            "OG",
+            "NH2",
+            3.27
+          ]
+        ],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R121",
+        "r2": "C:Y321",
+        "min_dist": 3.32,
+        "n_contacts": 18,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:T108",
+        "r2": "C:K76",
+        "min_dist": 3.37,
+        "n_contacts": 12,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:Q106",
+        "r2": "C:K77",
+        "min_dist": 3.46,
+        "n_contacts": 9,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:E26",
+        "r2": "C:Q74",
+        "min_dist": 3.46,
+        "n_contacts": 4,
+        "hbonds": [
+          [
+            "OE1",
+            "O",
+            3.46
+          ]
+        ],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:N105",
+        "r2": "C:A79",
+        "min_dist": 3.47,
+        "n_contacts": 7,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:S125",
+        "r2": "C:C257",
+        "min_dist": 3.5,
+        "n_contacts": 3,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:S125",
+        "r2": "C:I254",
+        "min_dist": 3.52,
+        "n_contacts": 5,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:T108",
+        "r2": "C:D75",
+        "min_dist": 3.57,
+        "n_contacts": 8,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:I11",
+        "r2": "C:L319",
+        "min_dist": 3.66,
+        "n_contacts": 14,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:E26",
+        "r2": "C:K76",
+        "min_dist": 3.7,
+        "n_contacts": 11,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:N105",
+        "r2": "C:I78",
+        "min_dist": 3.71,
+        "n_contacts": 7,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:S125",
+        "r2": "C:C320",
+        "min_dist": 3.71,
+        "n_contacts": 6,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:N105",
+        "r2": "C:P80",
+        "min_dist": 3.75,
+        "n_contacts": 5,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:Y124",
+        "r2": "C:C320",
+        "min_dist": 3.76,
+        "n_contacts": 4,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:N105",
+        "r2": "C:E81",
+        "min_dist": 3.78,
+        "n_contacts": 2,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:Q8",
+        "r2": "C:L319",
+        "min_dist": 3.79,
+        "n_contacts": 13,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R64",
+        "r2": "C:E106",
+        "min_dist": 3.79,
+        "n_contacts": 5,
+        "hbonds": [],
+        "saltbridges": [
+          [
+            "NH1",
+            "OE2",
+            3.79
+          ]
+        ]
+      },
+      {
+        "r1": "A:K126",
+        "r2": "C:R256",
+        "min_dist": 3.89,
+        "n_contacts": 7,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:E103",
+        "r2": "C:T104",
+        "min_dist": 3.92,
+        "n_contacts": 5,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:A104",
+        "r2": "C:T104",
+        "min_dist": 3.93,
+        "n_contacts": 2,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:T28",
+        "r2": "C:K76",
+        "min_dist": 3.93,
+        "n_contacts": 5,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:I11",
+        "r2": "C:K318",
+        "min_dist": 3.96,
+        "n_contacts": 2,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R121",
+        "r2": "C:C320",
+        "min_dist": 3.98,
+        "n_contacts": 19,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:S107",
+        "r2": "C:K76",
+        "min_dist": 4.05,
+        "n_contacts": 4,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:T118",
+        "r2": "C:Q199",
+        "min_dist": 4.13,
+        "n_contacts": 3,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:Q106",
+        "r2": "C:T104",
+        "min_dist": 4.27,
+        "n_contacts": 4,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:S107",
+        "r2": "C:K77",
+        "min_dist": 4.41,
+        "n_contacts": 6,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:E26",
+        "r2": "C:K73",
+        "min_dist": 4.6,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R115",
+        "r2": "C:Q199",
+        "min_dist": 4.65,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:N15",
+        "r2": "C:L319",
+        "min_dist": 4.65,
+        "n_contacts": 2,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:K123",
+        "r2": "C:R256",
+        "min_dist": 4.72,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:T28",
+        "r2": "C:I78",
+        "min_dist": 4.75,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:E114",
+        "r2": "C:Q199",
+        "min_dist": 4.76,
+        "n_contacts": 2,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:C3",
+        "r2": "C:R256",
+        "min_dist": 4.76,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:R121",
+        "r2": "C:T223",
+        "min_dist": 4.82,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:N105",
+        "r2": "C:W65",
+        "min_dist": 4.86,
+        "n_contacts": 2,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:S107",
+        "r2": "C:I78",
+        "min_dist": 4.87,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:Q8",
+        "r2": "C:E279",
+        "min_dist": 4.94,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:T28",
+        "r2": "C:K77",
+        "min_dist": 4.97,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:N111",
+        "r2": "C:D75",
+        "min_dist": 4.97,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:N15",
+        "r2": "C:E322",
+        "min_dist": 4.98,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "A:E103",
+        "r2": "C:W65",
+        "min_dist": 5.0,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      }
+    ]
+  },
+  "BC": {
+    "name": "IL-4Ra(B) - IL-13Ra1(C)",
+    "buried_surface_area_A2": 610.0,
+    "total_dSASA_A2": 1219.0,
+    "n_residue_pairs": 36,
+    "n_interface_residues": 33,
+    "n_hbond_like": 5,
+    "n_saltbridge": 1,
+    "residues": [
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 154,
+        "resname": "TYR",
+        "label": "Y154",
+        "dSASA": 96.1,
+        "sasa_free": 101.7,
+        "n_contacts": 67,
+        "n_tight": 20,
+        "min_dist": 3.33,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "F275",
+          "F297",
+          "P300",
+          "V277",
+          "Y276"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 279,
+        "resname": "GLU",
+        "label": "E279",
+        "dSASA": 87.6,
+        "sasa_free": 159.6,
+        "n_contacts": 22,
+        "n_tight": 3,
+        "min_dist": 3.24,
+        "n_hbond": 0,
+        "n_saltbridge": 1,
+        "partners": [
+          "C182",
+          "H131",
+          "N130",
+          "T153"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 300,
+        "resname": "PRO",
+        "label": "P300",
+        "dSASA": 70.9,
+        "sasa_free": 77.6,
+        "n_contacts": 31,
+        "n_tight": 7,
+        "min_dist": 3.28,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "L159",
+          "Q151",
+          "R160",
+          "V152",
+          "Y150",
+          "Y154"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 301,
+        "resname": "GLY",
+        "label": "G301",
+        "dSASA": 63.1,
+        "sasa_free": 75.5,
+        "n_contacts": 21,
+        "n_tight": 5,
+        "min_dist": 3.45,
+        "n_hbond": 1,
+        "n_saltbridge": 0,
+        "partners": [
+          "A162",
+          "I161",
+          "L159",
+          "R160",
+          "Y150"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 278,
+        "resname": "GLN",
+        "label": "Q278",
+        "dSASA": 61.0,
+        "sasa_free": 97.5,
+        "n_contacts": 16,
+        "n_tight": 6,
+        "min_dist": 2.97,
+        "n_hbond": 3,
+        "n_saltbridge": 0,
+        "partners": [
+          "N130"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 160,
+        "resname": "ARG",
+        "label": "R160",
+        "dSASA": 58.4,
+        "sasa_free": 133.0,
+        "n_contacts": 15,
+        "n_tight": 2,
+        "min_dist": 3.45,
+        "n_hbond": 1,
+        "n_saltbridge": 0,
+        "partners": [
+          "G301",
+          "N273",
+          "P300",
+          "T271"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 303,
+        "resname": "LEU",
+        "label": "L303",
+        "dSASA": 58.4,
+        "sasa_free": 89.7,
+        "n_contacts": 8,
+        "n_tight": 2,
+        "min_dist": 3.41,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "A162",
+          "S164",
+          "T165"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 153,
+        "resname": "THR",
+        "label": "T153",
+        "dSASA": 53.7,
+        "sasa_free": 109.5,
+        "n_contacts": 12,
+        "n_tight": 0,
+        "min_dist": 4.01,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "E279",
+          "F297",
+          "M298",
+          "Y276"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 276,
+        "resname": "TYR",
+        "label": "Y276",
+        "dSASA": 50.8,
+        "sasa_free": 110.6,
+        "n_contacts": 27,
+        "n_tight": 5,
+        "min_dist": 3.06,
+        "n_hbond": 1,
+        "n_saltbridge": 0,
+        "partners": [
+          "L155",
+          "T153",
+          "Y154"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 269,
+        "resname": "THR",
+        "label": "T269",
+        "dSASA": 49.5,
+        "sasa_free": 85.3,
+        "n_contacts": 18,
+        "n_tight": 4,
+        "min_dist": 3.29,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "S111",
+          "T113"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 130,
+        "resname": "ASN",
+        "label": "N130",
+        "dSASA": 47.5,
+        "sasa_free": 109.0,
+        "n_contacts": 18,
+        "n_tight": 6,
+        "min_dist": 2.97,
+        "n_hbond": 3,
+        "n_saltbridge": 0,
+        "partners": [
+          "E279",
+          "Q278"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 155,
+        "resname": "LEU",
+        "label": "L155",
+        "dSASA": 43.0,
+        "sasa_free": 97.8,
+        "n_contacts": 14,
+        "n_tight": 2,
+        "min_dist": 3.06,
+        "n_hbond": 1,
+        "n_saltbridge": 0,
+        "partners": [
+          "Y276"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 111,
+        "resname": "SER",
+        "label": "S111",
+        "dSASA": 42.6,
+        "sasa_free": 95.0,
+        "n_contacts": 18,
+        "n_tight": 5,
+        "min_dist": 3.29,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "T269",
+          "T271"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 151,
+        "resname": "GLN",
+        "label": "Q151",
+        "dSASA": 40.8,
+        "sasa_free": 117.3,
+        "n_contacts": 12,
+        "n_tight": 2,
+        "min_dist": 3.28,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "M298",
+          "P300"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 271,
+        "resname": "THR",
+        "label": "T271",
+        "dSASA": 40.0,
+        "sasa_free": 55.5,
+        "n_contacts": 11,
+        "n_tight": 2,
+        "min_dist": 3.75,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "R160",
+          "S111",
+          "T113"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 150,
+        "resname": "TYR",
+        "label": "Y150",
+        "dSASA": 37.1,
+        "sasa_free": 61.1,
+        "n_contacts": 12,
+        "n_tight": 4,
+        "min_dist": 3.57,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "G301",
+          "P300"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 275,
+        "resname": "PHE",
+        "label": "F275",
+        "dSASA": 36.1,
+        "sasa_free": 61.0,
+        "n_contacts": 31,
+        "n_tight": 13,
+        "min_dist": 3.33,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "Y154"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 298,
+        "resname": "MET",
+        "label": "M298",
+        "dSASA": 34.4,
+        "sasa_free": 57.9,
+        "n_contacts": 5,
+        "n_tight": 0,
+        "min_dist": 4.16,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "Q151",
+          "T153"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 297,
+        "resname": "PHE",
+        "label": "F297",
+        "dSASA": 31.7,
+        "sasa_free": 39.4,
+        "n_contacts": 19,
+        "n_tight": 1,
+        "min_dist": 3.91,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "T153",
+          "Y154"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 181,
+        "resname": "GLN",
+        "label": "Q181",
+        "dSASA": 28.7,
+        "sasa_free": 136.6,
+        "n_contacts": 1,
+        "n_tight": 0,
+        "min_dist": 4.77,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "E283"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 131,
+        "resname": "HIS",
+        "label": "H131",
+        "dSASA": 25.7,
+        "sasa_free": 72.6,
+        "n_contacts": 17,
+        "n_tight": 3,
+        "min_dist": 3.24,
+        "n_hbond": 0,
+        "n_saltbridge": 1,
+        "partners": [
+          "E279"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 165,
+        "resname": "THR",
+        "label": "T165",
+        "dSASA": 22.0,
+        "sasa_free": 48.6,
+        "n_contacts": 3,
+        "n_tight": 1,
+        "min_dist": 3.74,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "L303"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 164,
+        "resname": "SER",
+        "label": "S164",
+        "dSASA": 21.6,
+        "sasa_free": 100.9,
+        "n_contacts": 4,
+        "n_tight": 1,
+        "min_dist": 3.41,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "D305",
+          "L303"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 273,
+        "resname": "ASN",
+        "label": "N273",
+        "dSASA": 21.3,
+        "sasa_free": 60.9,
+        "n_contacts": 6,
+        "n_tight": 0,
+        "min_dist": 4.26,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "R160"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 113,
+        "resname": "THR",
+        "label": "T113",
+        "dSASA": 19.8,
+        "sasa_free": 35.7,
+        "n_contacts": 7,
+        "n_tight": 0,
+        "min_dist": 4.08,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "T269",
+          "T271"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 162,
+        "resname": "ALA",
+        "label": "A162",
+        "dSASA": 19.3,
+        "sasa_free": 40.5,
+        "n_contacts": 3,
+        "n_tight": 0,
+        "min_dist": 4.5,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "G301",
+          "L303"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 159,
+        "resname": "LEU",
+        "label": "L159",
+        "dSASA": 15.5,
+        "sasa_free": 16.0,
+        "n_contacts": 7,
+        "n_tight": 2,
+        "min_dist": 3.72,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "G301",
+          "P300"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 277,
+        "resname": "VAL",
+        "label": "V277",
+        "dSASA": 10.6,
+        "sasa_free": 11.3,
+        "n_contacts": 4,
+        "n_tight": 0,
+        "min_dist": 4.46,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "Y154"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 283,
+        "resname": "GLU",
+        "label": "E283",
+        "dSASA": 10.2,
+        "sasa_free": 235.1,
+        "n_contacts": 1,
+        "n_tight": 0,
+        "min_dist": 4.77,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "Q181"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 182,
+        "resname": "CYS",
+        "label": "C182",
+        "dSASA": 9.9,
+        "sasa_free": 74.4,
+        "n_contacts": 2,
+        "n_tight": 0,
+        "min_dist": 4.04,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "E279"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 161,
+        "resname": "ILE",
+        "label": "I161",
+        "dSASA": 7.4,
+        "sasa_free": 9.9,
+        "n_contacts": 7,
+        "n_tight": 0,
+        "min_dist": 4.13,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "G301"
+        ]
+      },
+      {
+        "chain": "C",
+        "protein": "IL-13Ra1",
+        "resid": 305,
+        "resname": "ASP",
+        "label": "D305",
+        "dSASA": 4.6,
+        "sasa_free": 99.1,
+        "n_contacts": 1,
+        "n_tight": 0,
+        "min_dist": 4.97,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "S164"
+        ]
+      },
+      {
+        "chain": "B",
+        "protein": "IL-4Ra",
+        "resid": 152,
+        "resname": "VAL",
+        "label": "V152",
+        "dSASA": 0.0,
+        "sasa_free": 0.7,
+        "n_contacts": 2,
+        "n_tight": 0,
+        "min_dist": 4.68,
+        "n_hbond": 0,
+        "n_saltbridge": 0,
+        "partners": [
+          "P300"
+        ]
+      }
+    ],
+    "pairs": [
+      {
+        "r1": "B:N130",
+        "r2": "C:Q278",
+        "min_dist": 2.97,
+        "n_contacts": 16,
+        "hbonds": [
+          [
+            "O",
+            "OE1",
+            3.45
+          ],
+          [
+            "ND2",
+            "OE1",
+            3.04
+          ],
+          [
+            "ND2",
+            "NE2",
+            2.97
+          ]
+        ],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:L155",
+        "r2": "C:Y276",
+        "min_dist": 3.06,
+        "n_contacts": 14,
+        "hbonds": [
+          [
+            "N",
+            "O",
+            3.06
+          ]
+        ],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:H131",
+        "r2": "C:E279",
+        "min_dist": 3.24,
+        "n_contacts": 17,
+        "hbonds": [],
+        "saltbridges": [
+          [
+            "NE2",
+            "OE2",
+            3.86
+          ]
+        ]
+      },
+      {
+        "r1": "B:Q151",
+        "r2": "C:P300",
+        "min_dist": 3.28,
+        "n_contacts": 8,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:S111",
+        "r2": "C:T269",
+        "min_dist": 3.29,
+        "n_contacts": 15,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:Y154",
+        "r2": "C:F275",
+        "min_dist": 3.33,
+        "n_contacts": 31,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:S164",
+        "r2": "C:L303",
+        "min_dist": 3.41,
+        "n_contacts": 3,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:Y154",
+        "r2": "C:Y276",
+        "min_dist": 3.43,
+        "n_contacts": 12,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:R160",
+        "r2": "C:G301",
+        "min_dist": 3.45,
+        "n_contacts": 4,
+        "hbonds": [
+          [
+            "O",
+            "O",
+            3.45
+          ]
+        ],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:Y150",
+        "r2": "C:G301",
+        "min_dist": 3.57,
+        "n_contacts": 7,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:Y154",
+        "r2": "C:P300",
+        "min_dist": 3.58,
+        "n_contacts": 10,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:L159",
+        "r2": "C:P300",
+        "min_dist": 3.72,
+        "n_contacts": 5,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:T165",
+        "r2": "C:L303",
+        "min_dist": 3.74,
+        "n_contacts": 3,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:R160",
+        "r2": "C:T271",
+        "min_dist": 3.75,
+        "n_contacts": 4,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:Y154",
+        "r2": "C:F297",
+        "min_dist": 3.91,
+        "n_contacts": 10,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:S111",
+        "r2": "C:T271",
+        "min_dist": 3.91,
+        "n_contacts": 3,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:T153",
+        "r2": "C:F297",
+        "min_dist": 4.01,
+        "n_contacts": 9,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:C182",
+        "r2": "C:E279",
+        "min_dist": 4.04,
+        "n_contacts": 2,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:T113",
+        "r2": "C:T271",
+        "min_dist": 4.08,
+        "n_contacts": 4,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:I161",
+        "r2": "C:G301",
+        "min_dist": 4.13,
+        "n_contacts": 7,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:Q151",
+        "r2": "C:M298",
+        "min_dist": 4.16,
+        "n_contacts": 4,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:R160",
+        "r2": "C:N273",
+        "min_dist": 4.26,
+        "n_contacts": 6,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:T153",
+        "r2": "C:E279",
+        "min_dist": 4.27,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:R160",
+        "r2": "C:P300",
+        "min_dist": 4.42,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:Y154",
+        "r2": "C:V277",
+        "min_dist": 4.46,
+        "n_contacts": 4,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:Y150",
+        "r2": "C:P300",
+        "min_dist": 4.47,
+        "n_contacts": 5,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:A162",
+        "r2": "C:G301",
+        "min_dist": 4.5,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:T113",
+        "r2": "C:T269",
+        "min_dist": 4.56,
+        "n_contacts": 3,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:A162",
+        "r2": "C:L303",
+        "min_dist": 4.63,
+        "n_contacts": 2,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:T153",
+        "r2": "C:M298",
+        "min_dist": 4.67,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:V152",
+        "r2": "C:P300",
+        "min_dist": 4.68,
+        "n_contacts": 2,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:L159",
+        "r2": "C:G301",
+        "min_dist": 4.71,
+        "n_contacts": 2,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:Q181",
+        "r2": "C:E283",
+        "min_dist": 4.77,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:N130",
+        "r2": "C:E279",
+        "min_dist": 4.82,
+        "n_contacts": 2,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:T153",
+        "r2": "C:Y276",
+        "min_dist": 4.9,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      },
+      {
+        "r1": "B:S164",
+        "r2": "C:D305",
+        "min_dist": 4.97,
+        "n_contacts": 1,
+        "hbonds": [],
+        "saltbridges": []
+      }
+    ]
+  },
+  "summary": {
+    "il4_epitope_IL4Ra": [
+      "I5",
+      "T6",
+      "Q8",
+      "E9",
+      "K12",
+      "T13",
+      "R53",
+      "R81",
+      "F82",
+      "R85",
+      "D87",
+      "R88",
+      "N89",
+      "W91",
+      "G92"
+    ],
+    "il4_epitope_IL13Ra1": [
+      "Q8",
+      "I11",
+      "N15",
+      "E26",
+      "T28",
+      "R64",
+      "E103",
+      "A104",
+      "N105",
+      "Q106",
+      "S107",
+      "T108",
+      "N111",
+      "E114",
+      "R115",
+      "K117",
+      "T118",
+      "R121",
+      "Y124",
+      "S125",
+      "C127",
+      "S128"
+    ],
+    "shared": [
+      "Q8"
+    ]
+  }
+}
