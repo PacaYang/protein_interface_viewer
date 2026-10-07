@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 from Bio.PDB.SASA import ATOMIC_RADII
-from scipy.ndimage import binary_propagation, distance_transform_edt, generate_binary_structure, label
+from scipy.ndimage import binary_propagation, distance_transform_edt, find_objects, generate_binary_structure, label
 from scipy.spatial import cKDTree
 
 from .analysis import residue_sasa, residues_for_chain
@@ -18,6 +18,7 @@ SOLVENT_PROBE_A = 1.4
 BULK_PROBE_A = 4.0
 MAX_VOXELS = 14_000_000
 MAX_COMPONENTS = 5
+MAX_POCKET_RESIDUES = 60
 NEIGHBORHOOD = generate_binary_structure(3, 1)
 
 
@@ -234,18 +235,47 @@ def _lining(records: list[dict], lining_voxels: np.ndarray, origin: np.ndarray, 
     return output, total
 
 
+def _search_mask(
+    origin: np.ndarray,
+    shape: tuple[int, ...],
+    grid_A: float,
+    centers: np.ndarray,
+    radius_A: float,
+) -> np.ndarray:
+    """Return the union of spheres without allocating a whole-grid coordinate mesh."""
+
+    mask = np.zeros(shape, dtype=bool)
+    centers = np.asarray(centers, dtype=float).reshape(-1, 3)
+    if not len(centers):
+        return mask
+    lo = np.maximum(0, np.floor((centers.min(axis=0) - radius_A - origin) / grid_A).astype(int))
+    hi = np.minimum(shape, np.ceil((centers.max(axis=0) + radius_A - origin) / grid_A).astype(int) + 1)
+    if np.any(hi <= lo):
+        return mask
+    region = mask[tuple(slice(int(a), int(b)) for a, b in zip(lo, hi))]
+    tree = cKDTree(centers)
+    # Flat chunks also bound allocations when listed residues are far apart.
+    for start in range(0, region.size, 65_536):
+        stop = min(start + 65_536, region.size)
+        indices = np.column_stack(np.unravel_index(np.arange(start, stop), region.shape))
+        points = origin + (indices + lo) * grid_A
+        distances, _ = tree.query(points)
+        region.flat[start:stop] = distances <= radius_A
+    return mask
+
+
 def _state_result(
     model,
     state_name: str,
     state_chains: list[str],
-    target_chain: str,
-    anchor: np.ndarray,
-    anchor_radius_A: float,
+    centers: np.ndarray,
+    search_mask: np.ndarray,
     origin: np.ndarray,
     shape: tuple[int, ...],
     grid_A: float,
     solvent_probe_A: float,
     bulk_probe_A: float,
+    defined_residues: list[dict] | None = None,
 ):
     records = _atom_records(model, state_chains)
     solid = _voxelize(records, origin, shape, grid_A)
@@ -254,65 +284,112 @@ def _state_result(
     large_free = clearance >= bulk_probe_A
     bulk_external = _exterior(large_free)
     candidates = small_free & ~bulk_external
-    labels, count = label(candidates, structure=NEIGHBORHOOD)
-    anchor_mask = np.zeros(shape, dtype=bool)
-    anchor_index = np.rint((anchor - origin) / grid_A).astype(int)
-    # A local bounding box avoids constructing a full coordinate mesh.
-    radius_voxels = int(np.ceil(anchor_radius_A / grid_A))
-    lo = np.maximum(0, anchor_index - radius_voxels)
-    hi = np.minimum(np.asarray(shape), anchor_index + radius_voxels + 1)
-    xs = origin[0] + np.arange(lo[0], hi[0]) * grid_A
-    ys = origin[1] + np.arange(lo[1], hi[1]) * grid_A
-    zs = origin[2] + np.arange(lo[2], hi[2]) * grid_A
-    distances = ((xs[:, None, None] - anchor[0]) ** 2
-                 + (ys[None, :, None] - anchor[1]) ** 2
-                 + (zs[None, None, :] - anchor[2]) ** 2)
-    anchor_mask[lo[0]:hi[0], lo[1]:hi[1], lo[2]:hi[2]] = distances <= anchor_radius_A ** 2
-
-    candidate_ids = [int(x) for x in np.unique(labels[anchor_mask]) if x]
-    candidate_ids.sort(key=lambda item: int(np.sum(labels == item)), reverse=True)
+    full_labels, _ = label(candidates, structure=NEIGHBORHOOD)
+    full_sizes = np.bincount(full_labels.ravel())
+    inside_sizes = np.bincount(full_labels[search_mask], minlength=len(full_sizes))
+    if defined_residues is None:
+        # Retain the historical component identities and largest-first ranking.
+        labels = np.where(search_mask, full_labels, 0)
+    else:
+        # A union of windows can split one global component into multiple pockets.
+        labels, _ = label(candidates & search_mask, structure=NEIGHBORHOOD)
+    sizes = np.bincount(labels.ravel())
+    candidate_ids = [int(x) for x in np.flatnonzero(sizes[1:]) + 1]
+    bounds = find_objects(labels)
     sasa = residue_sasa(model, state_chains)
+
+    def region(component_id):
+        slices = tuple(
+            slice(max(0, part.start - 1), min(shape[axis], part.stop + 1))
+            for axis, part in enumerate(bounds[component_id - 1])
+        )
+        local_origin = origin + np.array([part.start for part in slices]) * grid_A
+        return slices, labels[slices] == component_id, local_origin
+
+    present_keys = [
+        item["key"] for item in (defined_residues or [])
+        if item["chain_id"] in state_chains
+    ]
+    ranked = []
+    if defined_residues is None:
+        candidate_ids.sort(key=lambda item: (-int(full_sizes[item]), item))
+        ranked = [{"component_id": item} for item in candidate_ids[:MAX_COMPONENTS]]
+    else:
+        # Coverage must be evaluated before limiting the returned components.
+        # Only retained candidates need depth searches and visualization meshes.
+        for component_id in candidate_ids:
+            slices, component, local_origin = region(component_id)
+            _, _, _, lining_voxels = _component_geometry(
+                component, bulk_external[slices], solid[slices], grid_A,
+                clearance[slices], solvent_probe_A + 2.0 * grid_A,
+            )
+            lining, lining_sasa = _lining(records, lining_voxels, local_origin, grid_A, sasa)
+            lining_keys = {item["key"] for item in lining}
+            defined_lining = [key for key in present_keys if key in lining_keys]
+            coverage = len(defined_lining) / len(present_keys) if present_keys else None
+            ranked.append({
+                "component_id": component_id,
+                "lining_residues": lining,
+                "lining_sasa_A2": lining_sasa,
+                "defined_residues_lining": defined_lining,
+                "defined_residues_present": len(present_keys),
+                "defined_residue_coverage": coverage,
+            })
+        ranked.sort(key=lambda item: (
+            -(item["defined_residue_coverage"] or 0.0),
+            -int(sizes[item["component_id"]]),
+            item["component_id"],
+        ))
+        ranked = ranked[:MAX_COMPONENTS]
+
+    center_tree = cKDTree(centers)
     pockets = []
-    for component_id in candidate_ids[:MAX_COMPONENTS]:
-        full_component = labels == component_id
-        # The anchor radius is an intentional analysis window. Clip a
-        # component that winds around the protein to that window instead of
-        # accidentally reporting an entire chain's narrow surface space.
-        component = full_component & anchor_mask
+    for entry in ranked:
+        component_id = entry["component_id"]
+        slices, component, local_origin = region(component_id)
         volume = float(component.sum()) * grid_A ** 3
         indices = np.argwhere(component)
-        nearest_anchor = float(np.min(np.linalg.norm(origin + indices * grid_A - anchor, axis=1)))
+        nearest_anchor = float(center_tree.query(local_origin + indices * grid_A)[0].min())
         boundary_area, opening_area, mouth, lining_voxels = _component_geometry(
-            component, bulk_external, solid, grid_A, clearance,
-            solvent_probe_A + 2.0 * grid_A,
+            component, bulk_external[slices], solid[slices], grid_A,
+            clearance[slices], solvent_probe_A + 2.0 * grid_A,
         )
-        lining, lining_sasa = _lining(records, lining_voxels, origin, grid_A, sasa)
+        if defined_residues is None:
+            lining, lining_sasa = _lining(records, lining_voxels, local_origin, grid_A, sasa)
+        else:
+            lining, lining_sasa = entry["lining_residues"], entry["lining_sasa_A2"]
         depth = _geodesic_depth(component, mouth, grid_A)
-        touches_grid_boundary = bool(np.any(component & _border_mask(np.ones(shape, dtype=bool))))
-        touches_search_boundary = bool(np.any(full_component & ~anchor_mask))
+        touches_grid_boundary = any(
+            (part.start == 0 and np.any(np.take(component, 0, axis=axis)))
+            or (part.stop == shape[axis] and np.any(np.take(component, -1, axis=axis)))
+            for axis, part in enumerate(slices)
+        )
+        first_index = tuple(indices[0] + np.array([part.start for part in slices]))
+        parent_id = int(full_labels[first_index])
+        touches_search_boundary = bool(full_sizes[parent_id] > inside_sizes[parent_id])
         touches_boundary = touches_grid_boundary or touches_search_boundary
         enclosure = 1.0 if boundary_area <= 0 else max(0.0, min(1.0, 1.0 - opening_area / boundary_area))
         class_name = "truncated" if touches_boundary else ("solvent_accessible" if np.any(mouth) else "enclosed")
         deepest = None
         if depth is not None:
-            distances_from_mouth = np.full(shape, -1, dtype=np.int32)
+            distances_from_mouth = np.full(component.shape, -1, dtype=np.int32)
             # Reuse the small BFS's result cheaply for the deepest point marker.
             queue = deque(int(x) for x in np.flatnonzero(mouth))
             distances_from_mouth[mouth] = 0
             while queue:
                 flat = queue.popleft()
-                point = np.unravel_index(flat, shape)
+                point = np.unravel_index(flat, component.shape)
                 for axis in range(3):
                     for direction in (-1, 1):
                         nxt = list(point); nxt[axis] += direction
-                        if 0 <= nxt[axis] < shape[axis]:
+                        if 0 <= nxt[axis] < component.shape[axis]:
                             nxt = tuple(nxt)
                             if component[nxt] and distances_from_mouth[nxt] < 0:
                                 distances_from_mouth[nxt] = distances_from_mouth[point] + 1
-                                queue.append(np.ravel_multi_index(nxt, shape))
+                                queue.append(np.ravel_multi_index(nxt, component.shape))
             deepest_index = np.argwhere(distances_from_mouth == distances_from_mouth[component].max())[0]
-            deepest = (origin + deepest_index * grid_A).round(3).tolist()
-        pockets.append({
+            deepest = (local_origin + deepest_index * grid_A).round(3).tolist()
+        pocket = {
             "component_id": component_id,
             "state": state_name,
             "class": class_name,
@@ -329,8 +406,12 @@ def _state_result(
             "mouth_voxel_count": int(mouth.sum()),
             "truncated": touches_boundary,
             "search_region_truncated": touches_search_boundary,
-            "mesh": _mesh(component, origin, grid_A),
-        })
+            "mesh": _mesh(component, local_origin, grid_A),
+        }
+        if defined_residues is not None:
+            for field in ("defined_residues_lining", "defined_residues_present", "defined_residue_coverage"):
+                pocket[field] = entry[field]
+        pockets.append(pocket)
     return {
         "state": state_name,
         "parameters": {
@@ -355,35 +436,70 @@ def _anchor_residue(model, target_chain: str, anchor: dict):
     raise ValueError(f"Residue {target_chain}:{number}{insertion} was not found")
 
 
+def _residue_set(model, target_chain: str, partner_chain: str, references: list[dict]):
+    if not references:
+        raise ValueError("Define a pocket with at least one residue")
+    if len(references) > MAX_POCKET_RESIDUES:
+        raise ValueError(f"Pocket definitions are limited to {MAX_POCKET_RESIDUES} residues")
+    identities = {}
+    coordinates = []
+    for reference in references:
+        chain_id = reference.get("chain_id")
+        if chain_id is None:
+            chain_id = target_chain
+        if chain_id not in {target_chain, partner_chain}:
+            raise ValueError("Pocket residues must belong to the target or partner chain")
+        residue, ident = _anchor_residue(model, chain_id, reference)
+        if ident["key"] in identities:
+            continue
+        atoms = [atom.coord for atom in residue if is_heavy_atom(atom)]
+        if not atoms:
+            raise ValueError(f"Residue {ident['key']} has no supported heavy atoms")
+        identities[ident["key"]] = ident
+        coordinates.extend(atoms)
+    return list(identities.values()), np.asarray(coordinates, dtype=float)
+
+
 def analyze_pocket(
     model,
     target_chain: str,
     partner_chain: str,
-    anchor_residue: dict,
+    anchor_residue: dict | None = None,
     radius_A: float = 8.0,
     *,
+    pocket_residues: list[dict] | None = None,
     grid_A: float = GRID_A,
     solvent_probe_A: float = SOLVENT_PROBE_A,
     bulk_probe_A: float = BULK_PROBE_A,
 ) -> dict:
     if not (4.0 <= float(radius_A) <= 12.0):
-        raise ValueError("Pocket anchor radius must be between 4 and 12 Å")
+        raise ValueError("Pocket search radius must be between 4 and 12 Å")
     if target_chain == partner_chain:
         raise ValueError("Target and partner chains must be different")
-    residue, anchor_ident = _anchor_residue(model, target_chain, anchor_residue)
-    anchor_atoms = [a.coord for a in residue if is_heavy_atom(a)]
-    if not anchor_atoms:
-        raise ValueError("The anchor residue has no supported heavy atoms")
-    anchor = np.mean(anchor_atoms, axis=0).astype(float)
+    if (anchor_residue is None) == (pocket_residues is None):
+        raise ValueError("Provide either an anchor residue or pocket residues, but not both")
+    defined_residues = None
+    anchor_ident = None
+    if pocket_residues is not None:
+        defined_residues, centers = _residue_set(model, target_chain, partner_chain, pocket_residues)
+        anchor = centers.mean(axis=0)
+    else:
+        residue, anchor_ident = _anchor_residue(model, target_chain, anchor_residue)
+        anchor_atoms = [a.coord for a in residue if is_heavy_atom(a)]
+        if not anchor_atoms:
+            raise ValueError("The anchor residue has no supported heavy atoms")
+        anchor = np.mean(anchor_atoms, axis=0).astype(float)
+        centers = anchor[None, :]
     all_records = _atom_records(model, [target_chain, partner_chain])
     origin, shape = _grid_for(all_records, grid_A, max(12.0, float(radius_A) + bulk_probe_A + 1.0))
+    search_mask = _search_mask(origin, shape, grid_A, centers, float(radius_A))
     free = _state_result(
-        model, "free", [target_chain], target_chain, anchor, float(radius_A), origin, shape,
-        grid_A, solvent_probe_A, bulk_probe_A,
+        model, "free", [target_chain], centers, search_mask, origin, shape,
+        grid_A, solvent_probe_A, bulk_probe_A, defined_residues,
     )
     bound = _state_result(
-        model, "bound", [target_chain, partner_chain], target_chain, anchor, float(radius_A), origin, shape,
-        grid_A, solvent_probe_A, bulk_probe_A,
+        model, "bound", [target_chain, partner_chain], centers, search_mask, origin, shape,
+        grid_A, solvent_probe_A, bulk_probe_A, defined_residues,
     )
     free_primary = free["primary"]
     bound_primary = bound["primary"]
@@ -405,6 +521,8 @@ def analyze_pocket(
     return {
         "target_chain": target_chain,
         "partner_chain": partner_chain,
+        "mode": "residues" if defined_residues is not None else "anchor",
+        "pocket_residues": defined_residues or [],
         "anchor_residue": anchor_ident,
         "anchor_coord": anchor.round(3).tolist(),
         "radius_A": float(radius_A),

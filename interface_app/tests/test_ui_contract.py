@@ -55,3 +55,20 @@ def test_history_renders_chain_strips_and_overlay_drawer():
     for function_name in ("chainStrip", "historyRow", "openDrawer", "closeDrawer", "bindDropZone"):
         assert f"function {function_name}" in javascript
     assert "max-width: 1100px" in javascript
+
+
+def test_residue_highlight_panel_and_residue_defined_pockets():
+    html = (STATIC / "index.html").read_text()
+    for element_id in ("surface-stage", "residue-highlight-panel", "residue-highlight-toggle",
+                       "residue-highlight-body", "highlight-chain", "highlight-residues",
+                       "highlight-feedback", "pocket-residues", "pocket-use-selection"):
+        assert f'id="{element_id}"' in html
+    # The side panel sits beside the NGL viewport inside the same stage.
+    stage = html.index('id="surface-stage"')
+    assert stage < html.index('id="surface-view"') < html.index('id="residue-highlight-panel"')
+    assert 'name="pocket-mode" value="residues"' in html
+    javascript = (STATIC / "app.js").read_text()
+    for function_name in ("parseResidueSpec", "applyResidueHighlight", "setHighlightPanelCollapsed",
+                          "setPocketMode", "pocketResidueRequest"):
+        assert f"function {function_name}" in javascript
+    assert "pocket_residues" in javascript

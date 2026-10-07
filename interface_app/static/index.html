@@ -80,18 +80,66 @@
 
         <div class="workspace-main">
           <section id="surface-panel" class="panel surface-panel">
-            <div class="section-heading"><div><p class="eyebrow">STRUCTURE AND SURFACE</p><h2>3D Zernike surface</h2><p class="muted">Drag to rotate, scroll to zoom, or select a residue in the surface, contact map, or tables.</p></div><span id="surface-status" class="status-pill">waiting</span></div>
+            <div class="section-heading"><div><p class="eyebrow">STRUCTURE AND SURFACE</p><h2>3D Zernike surface</h2><p id="surface-view-help" class="muted">Drag to rotate, scroll to zoom, or select a residue in the surface, contact map, or tables.</p></div><span id="surface-status" class="status-pill">waiting</span></div>
+            <div class="tab-strip" role="tablist" aria-label="Surface views">
+              <button id="surface-interactive-tab" class="tab-button active" type="button" role="tab" aria-selected="true" aria-controls="surface-interactive-panel">Interactive 3D</button>
+              <button id="surface-faces-tab" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="surface-faces-panel" tabindex="-1">Binding faces</button>
+            </div>
             <div class="surface-controls">
               <label>Curvature resolution<select id="surface-resolution"><option value="4">4 Å · fine</option><option value="6" selected>6 Å · default</option><option value="8">8 Å · broad</option></select></label>
               <label>Surface opacity<input id="surface-opacity" type="range" min="0" max="0.85" step="0.05" value="0.55"><output id="surface-opacity-value" for="surface-opacity">55%</output></label>
               <label>Contact padding<input id="surface-padding" type="range" min="0" max="8" step="0.5" value="2"><output id="surface-padding-value" for="surface-padding">2.0 Å</output></label>
-              <label>Separate opposing surfaces<input id="surface-separation" type="range" min="0" max="12" step="0.5" value="0"><output id="surface-separation-value" for="surface-separation">0.0 Å</output></label>
+              <label id="surface-separation-control">Separate opposing surfaces<input id="surface-separation" type="range" min="0" max="12" step="0.5" value="0"><output id="surface-separation-value" for="surface-separation">0.0 Å</output></label>
               <div id="chain-toggles" class="chain-toggles" aria-label="Chain visibility"></div>
             </div>
             <div class="surface-colorbar"><span id="surface-color-min">−</span><span class="surface-color-ramp" aria-hidden="true"></span><span>0</span><span id="surface-color-max">+</span><span id="surface-color-label">H (Å⁻¹) · 6 Å neighborhoods</span><span class="surface-grey-swatch" aria-hidden="true"></span><span>outside padded contact</span></div>
             <div id="protein-stats" class="surface-stats" aria-label="Whole-protein surface summaries"></div>
             <div id="surface-pair-stats" class="surface-stats" aria-label="Selected interface surface summaries"></div>
-            <div id="surface-view" class="surface-view" role="img" aria-label="Interactive three-dimensional binding interface"></div>
+            <div id="surface-interactive-panel" role="tabpanel" aria-labelledby="surface-interactive-tab">
+              <div id="surface-stage" class="surface-stage">
+                <div id="surface-view" class="surface-view" role="img" aria-label="Interactive three-dimensional binding interface"></div>
+                <aside id="residue-highlight-panel" class="surface-side" aria-label="Highlight residue surfaces">
+                  <div class="highlight-heading">
+                    <h3>Highlight residues</h3>
+                    <button id="residue-highlight-toggle" class="icon-button" type="button" aria-expanded="true" aria-controls="residue-highlight-body" aria-label="Collapse residue highlights" title="Collapse residue highlights">−</button>
+                  </div>
+                  <div id="residue-highlight-body">
+                    <form id="residue-highlight-form" class="highlight-form">
+                      <label>Default chain<select id="highlight-chain"></select></label>
+                      <label>Residue numbers<textarea id="highlight-residues" rows="3" placeholder="A:45-52, 60, B:101" aria-describedby="highlight-help" spellcheck="false"></textarea></label>
+                      <p id="highlight-help" class="field-hint">Separate numbers or ranges with commas or spaces. Add a chain prefix to select another chain, such as B:101 or A:63A.</p>
+                      <div class="highlight-actions">
+                        <button class="primary" type="submit">Highlight</button>
+                        <button id="highlight-clear" class="secondary" type="button">Clear</button>
+                      </div>
+                    </form>
+                    <p id="highlight-feedback" class="note" aria-live="polite">Enter residue numbers to highlight their surface patches.</p>
+                  </div>
+                </aside>
+              </div>
+            </div>
+            <section id="surface-faces-panel" class="binding-faces" role="tabpanel" aria-labelledby="surface-faces-tab" hidden>
+              <div class="face-view-controls">
+                <label class="toggle" title="Turn off to rotate each chain independently. Turning it back on aligns both views to the last pane you rotated."><input id="face-rotation-coupled" type="checkbox" aria-controls="face-view-grid" checked> Couple rotation</label>
+              </div>
+              <div class="face-message-row">
+                <p id="face-view-status" class="note" role="status">Choose an interface to view its binding faces.</p>
+                <button id="face-view-retry" class="secondary" type="button" hidden>Retry</button>
+              </div>
+              <div id="face-view-grid" class="face-view-grid" hidden>
+                <section class="face-panel" aria-labelledby="face-chain-a-label">
+                  <div class="face-panel-heading"><h3 id="face-chain-a-label">First partner</h3><div class="face-zoom-controls" aria-label="First partner zoom"><button type="button" data-face-zoom="a" data-zoom="out" aria-label="Zoom out first partner">−</button><button type="button" data-face-zoom="a" data-zoom="in" aria-label="Zoom in first partner">+</button></div></div>
+                  <div id="face-view-a" class="face-viewport" role="img" aria-label="First partner binding face with mirrored coupled rotation" tabindex="0"></div>
+                  <p id="face-plane-a" class="face-plane-note"></p>
+                </section>
+                <section class="face-panel" aria-labelledby="face-chain-b-label">
+                  <div class="face-panel-heading"><h3 id="face-chain-b-label">Second partner</h3><div class="face-zoom-controls" aria-label="Second partner zoom"><button type="button" data-face-zoom="b" data-zoom="out" aria-label="Zoom out second partner">−</button><button type="button" data-face-zoom="b" data-zoom="in" aria-label="Zoom in second partner">+</button></div></div>
+                  <div id="face-view-b" class="face-viewport" role="img" aria-label="Second partner binding face with mirrored coupled rotation" tabindex="0"></div>
+                  <p id="face-plane-b" class="face-plane-note"></p>
+                </section>
+              </div>
+              <p id="face-hover-readout" class="face-hover-readout" aria-live="polite">Hover a residue to highlight its closest partner.</p>
+            </section>
             <div id="surface-tip" class="surface-tip" role="tooltip" aria-hidden="true"></div>
             <p id="surface-selection" class="note" aria-live="polite">Select a residue in the surface, contact map, or interface table.</p>
             <p id="surface-note" class="note"></p>
@@ -141,13 +189,24 @@
           <section id="pocket-panel" class="panel pocket-panel" hidden>
             <div class="section-heading"><div><p class="eyebrow">POCKET GEOMETRY</p><h2>Compare a selected region</h2><p class="muted">The grid detector identifies standard-probe space that is not connected to broad bulk-solvent space.</p></div><span id="pocket-job-status" class="status-pill" hidden></span></div>
             <form id="pocket-form" class="pocket-controls">
+              <fieldset class="pocket-mode">
+                <legend>Define the pocket region</legend>
+                <label><input id="pocket-mode-anchor" type="radio" name="pocket-mode" value="anchor" checked> Anchor residue</label>
+                <label><input id="pocket-mode-residues" type="radio" name="pocket-mode" value="residues"> Residue list</label>
+              </fieldset>
               <label>Target chain<select id="pocket-target"></select></label>
-              <label>Anchor residue<select id="pocket-anchor"></select></label>
+              <label id="pocket-anchor-field">Anchor residue<select id="pocket-anchor"></select></label>
               <label>Partner chain<select id="pocket-partner"></select></label>
-              <label>Radius <input id="pocket-radius" type="number" min="4" max="12" step="0.5" value="8"><span>Å</span></label>
-              <button class="primary" type="submit">Analyze pocket</button>
+              <label><span id="pocket-radius-label">Radius</span><input id="pocket-radius" type="number" min="4" max="12" step="0.5" value="8" required><span>Å</span></label>
+              <button id="pocket-submit" class="primary" type="submit">Analyze pocket</button>
+              <div id="pocket-residue-field" class="pocket-residue-field" hidden>
+                <label>Residue numbers<textarea id="pocket-residues" rows="2" placeholder="63, 64, 66-70, B:12" aria-describedby="pocket-residue-help" spellcheck="false" disabled></textarea></label>
+                <button id="pocket-use-selection" class="secondary" type="button">Use current selection</button>
+                <p id="pocket-residue-help" class="field-hint">Use up to 60 residues from the target or partner chain. Numbers without a chain prefix use the target chain. Distance is measured from the listed residues' atoms.</p>
+              </div>
+              <p id="pocket-feedback" class="note pocket-feedback" aria-live="polite" hidden></p>
             </form>
-            <div id="pocket-result" class="pocket-result"><p class="muted">Choose a residue anchor and submit a pocket analysis.</p></div>
+            <div id="pocket-result" class="pocket-result"><p class="muted">Choose a residue anchor or residue list and submit a pocket analysis.</p></div>
           </section>
         </div>
       </div>

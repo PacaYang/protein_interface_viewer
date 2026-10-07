@@ -12,8 +12,9 @@ from pathlib import Path
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
+from .face_view import binding_face_view
 from .jobs import JobManager
 from .storage import Store
 from .structure import apply_source_chain_names, fetch_rcsb, parse_text, rcsb_entry_metadata
@@ -32,12 +33,29 @@ class AnchorRequest(BaseModel):
     insertion_code: str = ""
 
 
+class ResidueRef(AnchorRequest):
+    chain_id: str | None = None
+
+
 class PocketRequest(BaseModel):
     target_chain: str
     partner_chain: str
-    anchor_residue: AnchorRequest
+    anchor_residue: AnchorRequest | None = None
+    pocket_residues: list[ResidueRef] | None = Field(default=None, min_length=1, max_length=60)
     radius_A: float = Field(default=8.0, ge=4.0, le=12.0)
     grid_A: float = Field(default=0.6, ge=0.4, le=1.2)
+
+    @model_validator(mode="after")
+    def require_one_definition(self):
+        if (self.anchor_residue is None) == (self.pocket_residues is None):
+            raise ValueError("Provide either an anchor residue or pocket residues, but not both")
+        if self.target_chain == self.partner_chain:
+            raise ValueError("Target and partner chains must be different")
+        if self.pocket_residues is not None:
+            for residue in self.pocket_residues:
+                if residue.chain_id is not None and residue.chain_id not in {self.target_chain, self.partner_chain}:
+                    raise ValueError("Pocket residues must belong to the target or partner chain")
+        return self
 
 
 def _format_from_name(name: str) -> str:
@@ -168,6 +186,24 @@ def create_app(data_dir: str | Path | None = None) -> FastAPI:
             raise HTTPException(404, "Curvature results are not ready")
         return JSONResponse(json.loads(Path(job["result_path"]).read_text()))
 
+    @app.get("/api/analyses/{analysis_id}/pairs/{pair_id}/face-view")
+    def face_view(analysis_id: str, pair_id: str):
+        item = store.get_analysis(analysis_id)
+        if not item:
+            raise HTTPException(404, "Analysis not found")
+        if not item.get("result_path"):
+            raise HTTPException(409, "Interface results are not ready")
+        result = json.loads(Path(item["result_path"]).read_text())
+        pair = next((pair for pair in result.get("pairs", []) if pair["id"] == pair_id), None)
+        if pair is None:
+            raise HTTPException(404, "Interface pair not found")
+        try:
+            loaded = parse_text(Path(item["source_path"]).read_text(errors="replace"),
+                                source_name=item["source_name"], source_format=item["source_format"])
+            return binding_face_view(loaded.model, pair)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+
     @app.get("/api/analyses/{analysis_id}/pockets")
     def pocket_history(analysis_id: str):
         item = store.get_analysis(analysis_id)
@@ -191,8 +227,7 @@ def create_app(data_dir: str | Path | None = None) -> FastAPI:
             raise HTTPException(404, "Analysis not found")
         if not item.get("result_path"):
             raise HTTPException(409, "Wait for interface analysis to finish before measuring a pocket")
-        payload = request.model_dump()
-        payload["anchor_residue"] = request.anchor_residue.model_dump()
+        payload = request.model_dump(exclude_none=True)
         job = manager.submit_pocket(analysis_id, payload)
         return {"analysis_id": analysis_id, "job_id": job["id"], "status_url": f"/api/jobs/{job['id']}"}
 

@@ -7,6 +7,7 @@ const state = {
   result: null,
   pairId: null,
   surface: null,
+  surfaceUnavailable: false,
   stage: null,
   structureText: null,
   structureFormat: null,
@@ -20,6 +21,13 @@ const state = {
   meshSource: null,
   meshSelectionKey: null,
   meshColorKey: null,
+  surfaceViewTab: "interactive",
+  faceRotationCoupled: true,
+  faceView: null,
+  faceGeneration: 0,
+  faceCache: new Map(),
+  faceLoading: false,
+  faceError: null,
   selectionReps: [],
   pocketComponent: null,
   pocketResult: null,
@@ -29,6 +37,11 @@ const state = {
   pocketJobId: null,
   pocketGeneration: 0,
   selectedResidues: [],
+  highlightUnmatched: [],
+  highlightMessage: "",
+  highlightError: false,
+  pocketMode: "anchor",
+  pocketRadii: {anchor: 8, residues: 6},
   activeTab: "residue",
   surfaceScale: "6",
   surfaceOpacity: 0.55,
@@ -386,12 +399,22 @@ function resetState() {
   state.result = null;
   state.pairId = null;
   state.surface = null;
+  state.surfaceUnavailable = false;
   state.structureText = null;
   state.structureFormat = null;
   state.pocketResult = null;
   state.pocketHighlighted = false;
   state.pocketHighlightCancelled = false;
   state.selectedResidues = [];
+  state.highlightUnmatched = [];
+  state.highlightMessage = "";
+  state.highlightError = false;
+  state.pocketRadii = {anchor: 8, residues: 6};
+  $("highlight-chain").textContent = "";
+  $("highlight-residues").value = "";
+  $("pocket-residues").value = "";
+  setPocketMode("anchor", true);
+  renderHighlightFeedback();
   state.curvatureLoaded = false;
   state.viewerLoaded = false;
   state.visibleChains = {};
@@ -400,6 +423,8 @@ function resetState() {
   state.surfaceOpacity = 0.55;
   state.surfacePadding = 2;
   state.surfaceSeparation = 0;
+  state.faceCache.clear();
+  setSurfaceViewTab("interactive");
   $("contact-cutoff").value = "5";
   $("contact-type").value = "all";
   $("contact-values").checked = true;
@@ -417,7 +442,7 @@ function resetState() {
   $("chain-toggles").textContent = "";
   hideContactTip();
   hideSurfaceTip();
-  $("pocket-result").innerHTML = '<p class="muted">Choose a residue anchor and submit a pocket analysis.</p>';
+  $("pocket-result").innerHTML = '<p class="muted">Choose a residue anchor or residue list and submit a pocket analysis.</p>';
   $("pocket-job-status").hidden = true;
   $("pocket-job-status").textContent = "";
   $("pair-workspace").hidden = true;
@@ -490,6 +515,7 @@ function renderStructureMetadata() {
   const chains = state.result?.metadata?.chains || [];
   $("chain-count").textContent = `${chains.length} protein chain${chains.length === 1 ? "" : "s"}`;
   buildChainToggles(chains);
+  renderHighlightChains();
   renderSurface();
 }
 
@@ -517,6 +543,8 @@ function renderJobs(jobs) {
 function setSurfaceStatus(status, text) {
   $("surface-status").textContent = text;
   $("surface-status").className = `status-pill ${status}`;
+  state.surfaceUnavailable = status === "failed";
+  if (state.faceView?.ready) updateFaceSurfaces(state.faceView);
 }
 
 async function loadCurvature() {
@@ -530,6 +558,7 @@ async function loadCurvature() {
     if (state.surface.status !== "complete" || !state.surface.report) {
       setSurfaceStatus("failed", state.surface.reason || "Surface unavailable");
       $("curvature").innerHTML = `<strong>Surface curvature unavailable</strong><p class="muted">${esc(state.surface.reason || "The optional surface job did not produce a mesh.")}</p>`;
+      renderHighlightFeedback();
       return;
     }
     setSurfaceStatus("complete", "Surface ready");
@@ -540,20 +569,19 @@ async function loadCurvature() {
     if (generation !== state.analysisGeneration) return;
     state.curvatureLoaded = false;
     setSurfaceStatus("failed", "Surface unavailable");
+    renderHighlightFeedback();
     showError(error);
   }
 }
 
 function cleanupViewer() {
+  cleanupFaceView();
   clearPocketHighlight();
   for (const {component, representation} of state.selectionReps) {
     try { component.removeRepresentation(representation); } catch (_) {}
   }
   state.selectionReps = [];
-  if (state.stage) {
-    try { state.stage.removeAllComponents(); } catch (_) {}
-    try { state.stage.dispose(); } catch (_) {}
-  }
+  if (state.stage) disposeNglStage(state.stage);
   state.stage = null;
   state.structureComponents = {};
   state.cartoonReps = {};
@@ -668,14 +696,20 @@ function renderInterfaces() {
 function selectPair(id) {
   const pair = (state.result?.pairs || []).find((item) => item.id === id);
   if (!pair) return;
+  cleanupFaceView();
   state.pairId = id;
   state.activeTab = "residue";
   state.selectedResidues = [];
+  state.highlightUnmatched = [];
+  state.highlightError = false;
+  state.highlightMessage = $("highlight-residues").value.trim() ? "Input has not been applied to this interface." : "";
+  renderHighlightChains(pair.chain_a);
+  setPocketFeedback("");
   state.pocketResult = null;
   state.pocketHighlightCancelled = false;
   stopPocketPolling();
   clearPocketHighlight();
-  $("pocket-result").innerHTML = '<p class="muted">Choose a residue anchor and submit a pocket analysis.</p>';
+  $("pocket-result").innerHTML = '<p class="muted">Choose a residue anchor or residue list and submit a pocket analysis.</p>';
   $("pocket-job-status").hidden = true;
   $("pocket-job-status").textContent = "";
   $("pair-workspace").hidden = false;
@@ -749,6 +783,128 @@ function chainResidues(chain) {
   return (state.result?.metadata?.chains || []).find((item) => item.id === chain)?.residues || [];
 }
 
+function parseResidueSpec(text, defaultChain) {
+  const chains = new Map((state.result?.metadata?.chains || []).map(chain => [chain.id, chain.residues || []]));
+  const keys = new Set();
+  const unmatched = [];
+  const single = /^(-?\d+)([A-Za-z]?)$/;
+  const range = /^(-?\d+[A-Za-z]?)-(-?\d+[A-Za-z]?)$/;
+  let chain = defaultChain;
+  const findIndex = (residues, spec) => {
+    const match = spec.match(single);
+    if (!match || !Number.isSafeInteger(Number(match[1]))) return -1;
+    return residues.findIndex(item => item.number === Number(match[1]) && (item.insertion_code || "") === match[2]);
+  };
+  for (const token of String(text || "").split(/[,\s]+/).filter(Boolean)) {
+    let spec = token;
+    const colon = token.indexOf(":");
+    if (colon !== -1) {
+      chain = token.slice(0, colon);
+      spec = token.slice(colon + 1);
+    }
+    const residues = chains.get(chain);
+    if (!residues) {
+      unmatched.push(token);
+      continue;
+    }
+    // Also accept a spaced prefix, such as "A: 45, 46".
+    if (!spec && colon !== -1) continue;
+    const span = spec.match(range);
+    if (span) {
+      const start = findIndex(residues, span[1]);
+      const end = findIndex(residues, span[2]);
+      if (start === -1 || end < start) unmatched.push(token);
+      else residues.slice(start, end + 1).forEach(item => keys.add(residueKey(item)));
+    } else {
+      const index = findIndex(residues, spec);
+      if (index === -1) unmatched.push(token);
+      else keys.add(residueKey(residues[index]));
+    }
+  }
+  return {keys: [...keys], unmatched};
+}
+
+function renderHighlightChains(defaultChain) {
+  const select = $("highlight-chain");
+  const previous = select.value;
+  const chains = state.result?.metadata?.chains || [];
+  select.innerHTML = chains.map(chain => `<option value="${esc(chain.id)}">${esc(chainLabel(chain.id))}</option>`).join("");
+  select.value = chains.some(chain => chain.id === defaultChain) ? defaultChain
+    : chains.some(chain => chain.id === previous) ? previous : chains[0]?.id || "";
+}
+
+function setHighlightPanelCollapsed(collapsed) {
+  $("surface-stage").classList.toggle("side-collapsed", collapsed);
+  $("residue-highlight-body").hidden = collapsed;
+  const button = $("residue-highlight-toggle");
+  const label = collapsed ? "Expand residue highlights" : "Collapse residue highlights";
+  button.setAttribute("aria-expanded", String(!collapsed));
+  button.setAttribute("aria-label", label);
+  button.title = label;
+  button.textContent = collapsed ? "+" : "−";
+  try { localStorage.setItem("highlightPanelCollapsed", collapsed ? "1" : "0"); } catch (_) {}
+  requestAnimationFrame(() => state.stage?.handleResize());
+}
+
+function renderHighlightFeedback() {
+  const parts = [];
+  if (state.highlightMessage) parts.push(state.highlightMessage);
+  if (state.selectedResidues.length) {
+    parts.push(state.selectedResidues.length + " residue(s) selected.");
+    if (state.surface?.status === "complete" && curvatureScale()) {
+      const missing = state.selectedResidues.filter(key => {
+        const part = selectionParts(key);
+        return !wholeSurface(part?.chain)?.residues?.some(item => item.label === residueLabelFromKey(key));
+      });
+      if (missing.length) parts.push("No surface vertices assigned: " + missing.join(", ") + ".");
+    } else {
+      parts.push("Surface patches are unavailable; atom highlighting is available when the coordinate viewer is ready.");
+    }
+  } else if (!state.highlightMessage) {
+    parts.push("Enter residue numbers to highlight their surface patches.");
+  }
+  if (state.highlightUnmatched.length) parts.push("Unmatched input: " + state.highlightUnmatched.join(", ") + ".");
+  $("highlight-feedback").textContent = parts.join(" ");
+  $("highlight-feedback").classList.toggle("input-error", state.highlightError || !!state.highlightUnmatched.length);
+}
+
+function applyResidueHighlight(event) {
+  event?.preventDefault();
+  const {keys, unmatched} = parseResidueSpec($("highlight-residues").value, $("highlight-chain").value);
+  if (keys.length) {
+    selectResidues(keys);
+    state.highlightUnmatched = unmatched;
+  } else {
+    state.highlightUnmatched = unmatched;
+    state.highlightError = true;
+    state.highlightMessage = unmatched.length ? "No residues matched; the current selection was retained." : "Enter at least one residue number.";
+  }
+  renderHighlightFeedback();
+}
+
+function initResidueHighlightPanel() {
+  $("residue-highlight-form").addEventListener("submit", applyResidueHighlight);
+  $("residue-highlight-toggle").addEventListener("click", () => {
+    setHighlightPanelCollapsed($("residue-highlight-toggle").getAttribute("aria-expanded") === "true");
+  });
+  $("highlight-clear").addEventListener("click", () => {
+    selectResidues([]);
+    state.highlightMessage = "Selection cleared; input retained.";
+    renderHighlightFeedback();
+  });
+  for (const id of ["highlight-residues", "highlight-chain"]) {
+    $(id).addEventListener(id === "highlight-chain" ? "change" : "input", () => {
+      state.highlightUnmatched = [];
+      state.highlightError = false;
+      state.highlightMessage = "Edited input has not been applied.";
+      renderHighlightFeedback();
+    });
+  }
+  let collapsed = false;
+  try { collapsed = localStorage.getItem("highlightPanelCollapsed") === "1"; } catch (_) {}
+  setHighlightPanelCollapsed(collapsed);
+}
+
 function surfaceResidueKey(chain, label) {
   const residue = chainResidues(chain).find((item) => item.label === label);
   return residue ? residueKey(residue) : `${chain}:${label.replace(/^[A-Z]/, "")}`;
@@ -759,10 +915,14 @@ function updateAnchors() {
   $("pocket-anchor").innerHTML = chainResidues(target).map((residue) => `<option value="${esc(`${residue.number}:${residue.insertion_code || ""}`)}">${esc(residue.label)} · ${esc(residue.resname)}</option>`).join("");
   const pair = state.result?.pairs?.find((item) => item.id === state.pairId);
   if (pair) $("pocket-partner").value = target === pair.chain_a ? pair.chain_b : pair.chain_a;
+  setPocketFeedback("");
 }
 
 function selectResidues(keys) {
   state.selectedResidues = [...new Set(keys)];
+  state.highlightUnmatched = [];
+  state.highlightMessage = "";
+  state.highlightError = false;
   renderSelectionState();
   renderSurface();
 }
@@ -919,12 +1079,11 @@ function surfaceMeshGeometry(mesh, selectedLabels) {
   return {position, index, normal, vertexMap, highlightedVertexStart: vertexCount};
 }
 
-function meshColors(chain) {
+function meshColors(chain, geometry = state.meshGeometry[chain]) {
   const mesh = state.surface?.meshes?.[chain];
   const report = curvatureReport();
   if (!mesh || !report) return new Float32Array();
   const values = mesh.h?.[state.surfaceScale] || [];
-  const geometry = state.meshGeometry[chain];
   const colors = new Float32Array((geometry?.vertexMap.length || values.length) * 3);
   const limit = Number(report.color_limit_Ainv) || 1;
   const pair = state.result?.pairs?.find((item) => item.id === state.pairId);
@@ -954,11 +1113,37 @@ function meshColors(chain) {
   return colors;
 }
 
+function installSurfacePicking(shape, geometry) {
+  // NGL interpolates vertex picking colors across each triangle. Distinct
+  // vertex IDs can therefore decode to an unrelated vertex anywhere in the
+  // mesh. Use a separate picking geometry with a constant ID per triangle;
+  // leave the indexed display mesh and its smooth normals untouched.
+  const position = new Float32Array(geometry.index.length * 3);
+  const primitiveId = new Float32Array(geometry.index.length);
+  for (let corner = 0; corner < geometry.index.length; corner += 1) {
+    const vertex = geometry.index[corner];
+    position.set(geometry.position.subarray(vertex * 3, vertex * 3 + 3), corner * 3);
+    primitiveId[corner] = Math.floor(corner / 3);
+  }
+  const picking = new NGL.MeshBuffer({position, primitiveId,
+    color: new Float32Array(0), normal: new Float32Array(0)});
+  const buffer = shape.bufferList[0];
+  const getPickingMesh = buffer.getPickingMesh.bind(buffer);
+  buffer.getPickingMesh = () => {
+    const mesh = getPickingMesh();
+    mesh.geometry = picking.geometry;
+    return mesh;
+  };
+  const dispose = buffer.dispose.bind(buffer);
+  buffer.dispose = () => { picking.dispose(); dispose(); };
+}
+
 function installSurfaceMesh(chain) {
   const geometry = state.meshGeometry[chain];
   const shapeName = `surface-${encodeURIComponent(chain)}`;
   const shape = new NGL.Shape(shapeName);
   shape.addMesh(geometry.position, meshColors(chain), geometry.index, geometry.normal, `${chain} surface`);
+  installSurfacePicking(shape, geometry);
   const component = state.stage.addComponentFromObject(shape);
   state.meshComponents[chain] = component;
   state.meshReps[chain] = component.addRepresentation("buffer", {
@@ -1132,6 +1317,8 @@ function renderSurface() {
   renderSurfaceStats();
   renderCurvatureTable();
   selectedSummary();
+  renderHighlightFeedback();
+  if (state.surfaceViewTab === "faces") ensureFaceView();
   if (!state.stage) return;
   // Residue selections should work as soon as the coordinate viewer is ready;
   // they do not depend on the optional curvature job.
@@ -1426,13 +1613,73 @@ function renderContactMapTable(slice, data) {
   if (!slice.cells.length) tbody.innerHTML = '<tr><td colspan="14" class="muted">No contacts match the selected filters.</td></tr>';
 }
 
+function setPocketFeedback(message, error = false) {
+  const feedback = $("pocket-feedback");
+  feedback.textContent = message;
+  feedback.hidden = !message;
+  feedback.classList.toggle("input-error", error);
+}
+
+function setPocketMode(mode, reset = false) {
+  if (!["anchor", "residues"].includes(mode)) return;
+  const radius = Number($("pocket-radius").value);
+  if (!reset && Number.isFinite(radius) && radius >= 4 && radius <= 12) {
+    state.pocketRadii[state.pocketMode] = radius;
+  }
+  state.pocketMode = mode;
+  $("pocket-mode-anchor").checked = mode === "anchor";
+  $("pocket-mode-residues").checked = mode === "residues";
+  $("pocket-anchor-field").hidden = mode !== "anchor";
+  $("pocket-anchor").disabled = mode !== "anchor";
+  $("pocket-residue-field").hidden = mode !== "residues";
+  $("pocket-residues").disabled = mode !== "residues";
+  $("pocket-form").classList.toggle("residue-mode", mode === "residues");
+  $("pocket-radius-label").textContent = mode === "residues" ? "Distance from residues" : "Radius";
+  $("pocket-radius").value = state.pocketRadii[mode];
+  setPocketFeedback("");
+}
+
+function pocketResidueRequest() {
+  const {keys, unmatched} = parseResidueSpec($("pocket-residues").value, $("pocket-target").value);
+  if (unmatched.length) throw new Error("Unknown or invalid pocket residues: " + unmatched.join(", ") + ".");
+  if (!keys.length) throw new Error("Enter at least one residue to define the pocket.");
+  if (keys.length > 60) throw new Error("Pocket definitions are limited to 60 residues.");
+  const allowed = new Set([$("pocket-target").value, $("pocket-partner").value]);
+  const outside = keys.filter(key => !allowed.has(selectionParts(key)?.chain));
+  if (outside.length) throw new Error("Pocket residues must belong to the target or partner chain: " + outside.join(", ") + ".");
+  return keys.map(key => {
+    const part = selectionParts(key);
+    return {chain_id: part.chain, number: Number(part.number), insertion_code: part.insertion};
+  });
+}
+
+function usePocketSelection() {
+  if (!state.selectedResidues.length) {
+    setPocketFeedback("Select or highlight residues before using the current selection.", true);
+    return;
+  }
+  setPocketMode("residues");
+  $("pocket-residues").value = state.selectedResidues.join(", ");
+  try {
+    const residues = pocketResidueRequest();
+    setPocketFeedback("Copied " + residues.length + " selected residue(s).");
+  } catch (error) {
+    setPocketFeedback(error.message, true);
+  }
+}
+
 function renderPocketCard(item, label) {
-  if (!item) return `<div class="pocket-card"><h3>${esc(label)} · no pocket detected</h3><p class="muted">The selected anchor region does not contain a qualifying component.</p></div>`;
+  if (!item) return `<div class="pocket-card"><h3>${esc(label)} · no pocket detected</h3><p class="muted">The selected region does not contain a qualifying component.</p></div>`;
   const rows = [
     ["Class", item.class], ["Volume", `${fmt(item.volume_A3)} Å³`], ["Depth", item.depth_A == null ? "n/a (closed)" : `${fmt(item.depth_A)} Å`],
     ["Enclosure", `${fmt(item.enclosure_fraction * 100)}%`], ["Opening area", `${fmt(item.opening_area_A2)} Å²`],
     ["Lining SASA", `${fmt(item.lining_sasa_A2)} Å²`], ["Solvent exposure", `${fmt(item.solvent_exposure_A2)} Å²`], ["Lining residues", item.lining_residues.length],
   ];
+  if (item.defined_residues_present != null) {
+    rows.push(["Defined residues lining", item.defined_residues_present
+      ? item.defined_residues_lining.length + " / " + item.defined_residues_present + " (" + fmtPercent(item.defined_residue_coverage) + ")"
+      : "n/a (no defined residues present)"]);
+  }
   return `<div class="pocket-card"><h3>${esc(label)} <span class="chip">${esc(item.class)}</span></h3>${rows.map(([name, value]) => `<div class="metric"><span>${esc(name)}</span><b>${esc(value)}</b></div>`).join("")}<details><summary>Show lining residues</summary><p class="muted">${item.lining_residues.map((residue) => esc(residueDisplay(residue))).join(", ") || "none"}</p></details></div>`;
 }
 
@@ -1481,7 +1728,10 @@ function renderPocket(result) {
   state.pocketHighlightCancelled = false;
   clearPocketHighlight();
   const comparison = result.comparison || {};
-  $("pocket-result").innerHTML = `<div class="pocket-cards">${renderPocketCard(result.free?.primary, "Free")}${renderPocketCard(result.bound?.primary, "Bound")}</div><div class="delta"><strong>Free → bound</strong><p class="muted">State change: ${esc(comparison.state_change || "not comparable")} · volume Δ ${comparison.delta_volume_A3 == null ? "n/a" : `${fmt(comparison.delta_volume_A3)} Å³`} · opening Δ ${comparison.delta_opening_area_A2 == null ? "n/a" : `${fmt(comparison.delta_opening_area_A2)} Å²`} · exposure Δ ${comparison.delta_solvent_exposure_A2 == null ? "n/a" : `${fmt(comparison.delta_solvent_exposure_A2)} Å²`}</p></div><div class="pocket-actions"><button id="show-pocket-highlight" class="secondary" type="button" ${result.bound?.primary?.mesh?.faces?.length ? "" : "disabled"}>Highlight bound pocket</button><button id="cancel-pocket-highlight" class="quiet" type="button" disabled>Cancel highlight</button></div><details class="raw"><summary>Calculation details</summary><pre>${esc(JSON.stringify(result, null, 2))}</pre></details>`;
+  const definition = result.mode === "residues"
+    ? "Defined residues: " + (result.pocket_residues || []).map(residueDisplay).join(", ") + " · distance " + fmt(result.radius_A) + " Å"
+    : "Anchor: " + residueDisplay(result.anchor_residue) + " · radius " + fmt(result.radius_A) + " Å";
+  $("pocket-result").innerHTML = `<p class="pocket-definition muted">${esc(definition)}</p><div class="pocket-cards">${renderPocketCard(result.free?.primary, "Free")}${renderPocketCard(result.bound?.primary, "Bound")}</div><div class="delta"><strong>Free → bound</strong><p class="muted">State change: ${esc(comparison.state_change || "not comparable")} · volume Δ ${comparison.delta_volume_A3 == null ? "n/a" : `${fmt(comparison.delta_volume_A3)} Å³`} · opening Δ ${comparison.delta_opening_area_A2 == null ? "n/a" : `${fmt(comparison.delta_opening_area_A2)} Å²`} · exposure Δ ${comparison.delta_solvent_exposure_A2 == null ? "n/a" : `${fmt(comparison.delta_solvent_exposure_A2)} Å²`}</p></div><div class="pocket-actions"><button id="show-pocket-highlight" class="secondary" type="button" ${result.bound?.primary?.mesh?.faces?.length ? "" : "disabled"}>Highlight bound pocket</button><button id="cancel-pocket-highlight" class="quiet" type="button" disabled>Cancel highlight</button></div><details class="raw"><summary>Calculation details</summary><pre>${esc(JSON.stringify(result, null, 2))}</pre></details>`;
   if (result.bound?.primary?.mesh?.faces?.length) showPocketHighlight();
   updatePocketButtons();
 }
@@ -1496,14 +1746,32 @@ function updatePocketButtons() {
 
 async function submitPocket(event) {
   event.preventDefault();
-  const raw = $("pocket-anchor").value.split(":");
   const request = {
     target_chain: $("pocket-target").value,
     partner_chain: $("pocket-partner").value,
-    anchor_residue: {number: Number(raw[0]), insertion_code: raw.slice(1).join(":")},
     radius_A: Number($("pocket-radius").value),
     grid_A: 0.6,
   };
+  try {
+    if (!request.target_chain || !request.partner_chain || request.target_chain === request.partner_chain) {
+      throw new Error("Choose different target and partner chains.");
+    }
+    if (!Number.isFinite(request.radius_A) || request.radius_A < 4 || request.radius_A > 12) {
+      throw new Error("Pocket search distance must be between 4 and 12 Å.");
+    }
+    if (state.pocketMode === "residues") {
+      request.pocket_residues = pocketResidueRequest();
+    } else {
+      const raw = $("pocket-anchor").value.split(":");
+      if (!raw[0]) throw new Error("Choose an anchor residue.");
+      request.anchor_residue = {number: Number(raw[0]), insertion_code: raw.slice(1).join(":")};
+    }
+  } catch (error) {
+    setPocketFeedback(error.message, true);
+    return;
+  }
+  setPocketFeedback("");
+  clearError();
   stopPocketPolling();
   clearPocketHighlight();
   state.pocketResult = null;
@@ -1565,16 +1833,37 @@ function pollPocket(jobId) {
   }, 700);
 }
 
+function surfaceHitVertex(pick, mesh, geometry) {
+  if (!pick?.component || !mesh || !geometry || !Number.isInteger(pick.pid)
+    || pick.pid < 0 || pick.pid * 3 + 2 >= geometry.index.length) return null;
+  const cursor = pick.canvasPosition;
+  if (!cursor || !Number.isFinite(cursor.x) || !Number.isFinite(cursor.y)) return null;
+  const controls = pick.component.stage.viewerControls;
+  const point = new NGL.Vector3();
+  let closest = null;
+  let minDistance = Infinity;
+  for (let corner = 0; corner < 3; corner += 1) {
+    const displayed = geometry.index[pick.pid * 3 + corner];
+    const vertex = geometry.vertexMap[displayed];
+    if (vertex >= mesh.residue.length) continue;
+    point.fromArray(geometry.position, displayed * 3);
+    if (pick.instance) point.applyMatrix4(pick.instance.matrix);
+    point.applyMatrix4(pick.component.matrix);
+    const screen = controls.getPositionOnCanvas(point);
+    const distance = (screen.x - cursor.x) ** 2 + (screen.y - cursor.y) ** 2;
+    if (distance < minDistance) { closest = vertex; minDistance = distance; }
+  }
+  return closest;
+}
+
 function focusSurfaceHit(pick) {
   if (pick?.type !== "mesh" || !pick.component) return null;
   const name = pick.component.name;
   const chain = state.meshComponentChains.get(name);
-  if (!chain) return null;
+  if (!chain || pick.component !== state.meshComponents[chain]) return null;
   const mesh = state.surface?.meshes?.[chain];
-  const vertexMap = state.meshGeometry[chain]?.vertexMap;
-  if (!Number.isInteger(pick.pid) || !vertexMap || pick.pid < 0 || pick.pid >= vertexMap.length) return null;
-  const vertex = vertexMap[pick.pid];
-  if (!mesh || !Number.isInteger(vertex) || vertex < 0 || vertex >= mesh.residue.length) return null;
+  const vertex = surfaceHitVertex(pick, mesh, state.meshGeometry[chain]);
+  if (vertex === null) return null;
   return {chain, label: mesh.residue[vertex], vertex, h: mesh.h?.[state.surfaceScale]?.[vertex]};
 }
 
@@ -1594,6 +1883,468 @@ function showSurfaceTip(hit, event) {
 function hideSurfaceTip() {
   $("surface-tip").classList.remove("on");
   $("surface-tip").setAttribute("aria-hidden", "true");
+}
+
+function setSurfaceViewTab(tab) {
+  state.surfaceViewTab = tab;
+  const faces = tab === "faces";
+  clearFaceHover();
+  hideSurfaceTip();
+  for (const [name, selected] of [["interactive", !faces], ["faces", faces]]) {
+    const button = $(`surface-${name}-tab`);
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-selected", String(selected));
+    button.tabIndex = selected ? 0 : -1;
+    $(`surface-${name}-panel`).hidden = !selected;
+  }
+  $("surface-separation-control").hidden = faces;
+  $("chain-toggles").hidden = faces;
+  if (!faces) $("surface-view-help").textContent = "Drag to rotate, scroll to zoom, or select a residue in the surface, contact map, or tables.";
+  renderFaceRotationControls();
+  if (faces) {
+    ensureFaceView();
+    requestAnimationFrame(() => fitFaceViews(false));
+  } else {
+    requestAnimationFrame(() => state.stage?.handleResize());
+  }
+}
+
+function faceViewMessage(message, retry = false) {
+  $("face-view-status").textContent = message;
+  $("face-view-retry").hidden = !retry;
+}
+
+function renderFaceRotationControls() {
+  const coupled = state.faceRotationCoupled;
+  $("face-rotation-coupled").checked = coupled;
+  for (const panel of state.faceView?.panels || []) {
+    panel.host.setAttribute("aria-label", `Binding face of ${chainLabel(panel.chain)} with ${coupled ? "mirrored coupled" : "independent"} rotation`);
+  }
+  if (state.surfaceViewTab === "faces") {
+    const action = coupled ? "rotate both binding faces with mirrored motion" : "rotate that binding face independently";
+    $("surface-view-help").textContent = `Drag either partner to ${action}; scroll or use + / − to zoom. Table selections appear here; hover a residue to find its closest partner.`;
+  }
+}
+
+function setFaceRotationCoupled(coupled) {
+  const changed = state.faceRotationCoupled !== coupled;
+  state.faceRotationCoupled = coupled;
+  const face = state.faceView;
+  if (changed && coupled && face?.ready) applyFaceRotation(face);
+  renderFaceRotationControls();
+  if (face?.ready) updateFaceSurfaces(face);
+}
+
+function disposeNglStage(stage) {
+  // This bundled NGL version leaves observation and animation loops running
+  // after Stage.dispose(). Stop them and detach input behaviors first.
+  if (stage.mouseObserver) {
+    stage.mouseObserver.setParameters({hoverTimeout: -1});
+    stage.mouseObserver._listen = () => {};
+  }
+  stage.viewer.animate = () => {};
+  stage.viewer.render = () => {};
+  stage.viewer.requestRender = () => {};
+  for (const name of ["pickingBehavior", "mouseBehavior", "keyBehavior", "animationBehavior", "mouseObserver"]) {
+    stage[name]?.dispose();
+  }
+  // KeyBehavior.dispose in this NGL build removes the wrong down/up callbacks.
+  const keyboard = stage.keyBehavior;
+  if (keyboard) {
+    keyboard.domElement.removeEventListener("keydown", keyboard._onKeydown);
+    keyboard.domElement.removeEventListener("keyup", keyboard._onKeyup);
+  }
+  stage.signals.hovered.removeAll();
+  stage.signals.clicked.removeAll();
+  try { stage.removeAllComponents(); } catch (_) {}
+  try { stage.dispose(); } catch (_) {}
+  stage.tooltip?.remove();
+  stage.viewer.wrapper?.remove();
+}
+
+function cleanupFaceView() {
+  state.faceGeneration += 1;
+  state.faceLoading = false;
+  state.faceError = null;
+  const face = state.faceView;
+  state.faceView = null;
+  if (face) {
+    face.observer?.disconnect();
+    if (face.hoverFrame) cancelAnimationFrame(face.hoverFrame);
+    if (face.resizeFrame) cancelAnimationFrame(face.resizeFrame);
+    for (const panel of face.panels) {
+      for (const [event, handler] of panel.handlers) panel.host.removeEventListener(event, handler);
+      if (panel.rotationChanged) panel.stage.viewerControls.signals.changed.remove(panel.rotationChanged);
+      if (panel.hoverRefreshFrame) cancelAnimationFrame(panel.hoverRefreshFrame);
+      disposeNglStage(panel.stage);
+      panel.host.replaceChildren();
+    }
+  }
+  $("face-view-grid").hidden = true;
+  $("face-hover-readout").textContent = "Hover a residue to highlight its closest partner.";
+  faceViewMessage("Choose an interface to view its binding faces.");
+}
+
+function faceTransform(structure, frame) {
+  const normal = new NGL.Vector3(...frame.normal);
+  const up = new NGL.Vector3(...frame.up);
+  const right = new NGL.Vector3().crossVectors(normal, up);
+  // NGL's camera is on -Z. Map the outward normal to -Z and up to +Y,
+  // using a proper rotation so neither molecule is reflected.
+  const matrix = new NGL.Matrix4().set(
+    right.x, right.y, right.z, 0,
+    up.x, up.y, up.z, 0,
+    -normal.x, -normal.y, -normal.z, 0,
+    0, 0, 0, 1,
+  );
+  const bounds = new NGL.Box3().makeEmpty();
+  const point = new NGL.Vector3();
+  structure.eachAtom(atom => bounds.expandByPoint(point.set(atom.x, atom.y, atom.z).applyMatrix4(matrix)));
+  if (bounds.isEmpty()) throw new Error("The partner chain has no displayable atoms.");
+  const center = bounds.getCenter(new NGL.Vector3());
+  matrix.setPosition(center.clone().negate());
+  // Reserve room for the molecular surface before it arrives, keeping zoom
+  // stable when cartoons gain their curvature mesh.
+  bounds.translate(center.negate()).expandByScalar(3);
+  return {matrix, bounds};
+}
+
+function createFacePanel(face, chain, side) {
+  const host = $(`face-view-${side}`);
+  const stage = new NGL.Stage(host, {backgroundColor: "#eef2f1", sampleLevel: 0,
+    cameraType: "orthographic", tooltip: false});
+  const panel = {stage, host, chain, side, handlers: [], hoverInside: false,
+    lastRotation: stage.viewerControls.rotation.clone(),
+    hoverRefreshFrame: null,
+    mesh: null, meshComponent: null, meshRep: null, meshGeometry: null,
+    meshSelectionKey: null, highlightKey: null, colorKey: null, lastWidth: null, lastHeight: null};
+  // Register immediately so a later build failure can dispose every stage.
+  face.panels.push(panel);
+  stage.mouseControls.clear();
+  stage.mouseControls.add("drag-left", NGL.MouseActions.rotateDrag);
+  stage.mouseControls.add("drag-ctrl-right", NGL.MouseActions.zRotateDrag);
+  stage.mouseControls.add("scroll", NGL.MouseActions.zoomScroll);
+  stage.keyControls.clear();
+  stage.keyControls.disabled = true;
+  panel.rotationChanged = () => syncFaceRotation(face, panel);
+  stage.viewerControls.signals.changed.add(panel.rotationChanged);
+  const view = state.structureComponents[chain].structure.getView(new NGL.Selection(`:${chain}`));
+  const frame = face.geometry.chains[chain];
+  const transform = faceTransform(view, frame);
+  panel.transform = transform.matrix;
+  panel.bounds = transform.bounds;
+  // StructureViews own their listeners, not the original parsed coordinates.
+  // Disposing this tab must leave Interactive 3D usable.
+  panel.component = stage.addComponentFromObject(view, {name: `binding-face-${chain}`});
+  panel.component.setTransform(panel.transform);
+  const index = (state.result.metadata?.chains || []).findIndex(item => item.id === chain);
+  panel.component.addRepresentation("cartoon", {color: cartoonColors[Math.max(0, index) % cartoonColors.length],
+    quality: "medium", opacity: 1});
+  panel.highlightRep = panel.component.addRepresentation("ball+stick", {
+    sele: "none", color: "#ffff00", scale: 0.85,
+  });
+  $(`face-chain-${side}-label`).textContent = chainLabel(chain);
+  host.setAttribute("aria-label", `Binding face of ${chainLabel(chain)} with ${state.faceRotationCoupled ? "mirrored coupled" : "independent"} rotation`);
+  $(`face-plane-${side}`).textContent = `${frame.binding_residue_keys.length} binding residues · ${frame.estimated ? "estimated direction" : "fitted binding plane"}`;
+  const enter = () => { panel.hoverInside = true; };
+  const leave = () => { panel.hoverInside = false; queueFaceHover(face, null); };
+  for (const [event, handler] of [["mouseenter", enter], ["mouseleave", leave]]) {
+    host.addEventListener(event, handler);
+    panel.handlers.push([event, handler]);
+  }
+  stage.signals.hovered.add(pick => {
+    if (state.faceView !== face || state.surfaceViewTab !== "faces" || !panel.hoverInside) return;
+    queueFaceHover(face, facePickedResidue(panel, pick));
+  });
+  return panel;
+}
+
+function mirroredFaceRotation(rotation) {
+  // Corresponding sites appear at opposite X positions in the two outward
+  // binding views. Conjugate by this reflection to keep their height and
+  // depth aligned: X tilt is shared, while Y turns and Z roll are reversed.
+  // This composes correctly for mixed rotations and is its own inverse.
+  return new NGL.Quaternion(rotation.x, -rotation.y, -rotation.z, rotation.w);
+}
+
+function syncFaceRotation(face, source) {
+  if (state.faceView !== face || !face.ready) return;
+  const sourceRotation = source.stage.viewerControls.rotation;
+  // Zoom also emits changed. Record only rotation changes, including while
+  // uncoupled, so re-coupling uses the last pane the user actually rotated.
+  if (source.lastRotation.equals(sourceRotation)) return;
+  source.lastRotation.copy(sourceRotation);
+  if (face.syncingRotation) return;
+  face.rotation.copy(source.side === "b" ? mirroredFaceRotation(sourceRotation) : sourceRotation);
+  if (state.faceRotationCoupled) applyFaceRotation(face, source);
+}
+
+function applyFaceRotation(face, source = null) {
+  face.syncingRotation = true;
+  try {
+    for (const panel of face.panels) {
+      if (panel !== source) panel.stage.viewerControls.rotate(
+        panel.side === "b" ? mirroredFaceRotation(face.rotation) : face.rotation);
+    }
+  } finally {
+    face.syncingRotation = false;
+  }
+}
+
+async function ensureFaceView() {
+  if (state.surfaceViewTab !== "faces" || !state.result) return;
+  const pair = state.result.pairs.find(item => item.id === state.pairId);
+  if (!pair) {
+    faceViewMessage("Choose an interface to view its binding faces.");
+    return;
+  }
+  if (state.faceView?.pairId === pair.id && state.faceView.ready) {
+    updateFaceSurfaces(state.faceView);
+    return;
+  }
+  if (state.faceLoading || state.faceError) return;
+  if (!state.structureComponents[pair.chain_a] || !state.structureComponents[pair.chain_b]) {
+    faceViewMessage("Loading partner coordinates…");
+    if (!state.viewerLoaded) loadStructureViewer();
+    return;
+  }
+  const generation = state.faceGeneration;
+  const analysisId = state.analysisId;
+  state.faceLoading = true;
+  faceViewMessage("Calculating binding planes and closest residues…");
+  try {
+    let geometry = state.faceCache.get(pair.id);
+    if (!geometry) {
+      geometry = await getJSON(`/api/analyses/${encodeURIComponent(analysisId)}/pairs/${encodeURIComponent(pair.id)}/face-view`);
+      if (generation !== state.faceGeneration || analysisId !== state.analysisId) return;
+      state.faceCache.set(pair.id, geometry);
+    }
+    if (state.surfaceViewTab !== "faces") return;
+    if (!geometry.available) {
+      state.faceError = geometry.reason || "Binding faces are unavailable for this interface.";
+      faceViewMessage(state.faceError);
+      return;
+    }
+    const face = {pairId: pair.id, geometry, panels: [], ready: false,
+      rotation: new NGL.Quaternion(), syncingRotation: false,
+      hoverKey: null, hoverKeys: [], pendingHover: null, hoverFrame: null, resizeFrame: null};
+    state.faceView = face;
+    $("face-view-grid").hidden = false;
+    createFacePanel(face, pair.chain_a, "a");
+    createFacePanel(face, pair.chain_b, "b");
+    face.ready = true;
+    updateFaceSurfaces(face);
+    fitFaceViews(true);
+    face.observer = new ResizeObserver(() => {
+      if (face.resizeFrame) cancelAnimationFrame(face.resizeFrame);
+      face.resizeFrame = requestAnimationFrame(() => {
+        face.resizeFrame = null;
+        if (state.faceView === face) fitFaceViews(false);
+      });
+    });
+    face.panels.forEach(panel => face.observer.observe(panel.host));
+  } catch (error) {
+    if (generation !== state.faceGeneration || analysisId !== state.analysisId) return;
+    cleanupFaceView();
+    state.faceError = error.message || String(error);
+    faceViewMessage(`Binding faces could not load: ${state.faceError}`, true);
+  } finally {
+    if (generation === state.faceGeneration) state.faceLoading = false;
+  }
+}
+
+function fitFaceViews(force) {
+  const face = state.faceView;
+  if (!face?.ready || state.surfaceViewTab !== "faces") return;
+  const sizes = face.panels.map(panel => panel.host.getBoundingClientRect());
+  if (sizes.some(size => size.width <= 0 || size.height <= 0)) return;
+  const changed = face.panels.some((panel, index) =>
+    panel.lastWidth !== sizes[index].width || panel.lastHeight !== sizes[index].height);
+  if (!force && !changed) return;
+  let unitsPerPixel = 0;
+  for (let i = 0; i < face.panels.length; i += 1) {
+    const panel = face.panels[i];
+    panel.stage.handleResize();
+    const rotation = new NGL.Matrix4().makeRotationFromQuaternion(panel.stage.viewerControls.rotation);
+    const extent = panel.bounds.clone().applyMatrix4(rotation).getSize(new NGL.Vector3());
+    unitsPerPixel = Math.max(unitsPerPixel, extent.x / sizes[i].width, extent.y / sizes[i].height);
+  }
+  for (let i = 0; i < face.panels.length; i += 1) {
+    const panel = face.panels[i];
+    panel.lastWidth = sizes[i].width;
+    panel.lastHeight = sizes[i].height;
+    const fov = panel.stage.viewer.perspectiveCamera.fov * Math.PI / 180;
+    const distance = sizes[i].height * unitsPerPixel * 1.1 / (2 * Math.tan(fov / 2));
+    panel.stage.viewerControls.distance(-Math.max(1, distance));
+    panel.stage.viewer.requestRender();
+  }
+}
+
+function facePickedResidue(panel, pick) {
+  let key = null;
+  let atom = pick?.atom;
+  if (!atom && pick?.bond) {
+    // NGL's closestBondAtom helper projects untransformed coordinates. Apply
+    // the fixed component frame before deciding which end was hovered.
+    const atoms = [pick.bond.atom1, pick.bond.atom2];
+    const distance = candidate => {
+      const point = candidate.positionToVector3(new NGL.Vector3());
+      if (pick.instance) point.applyMatrix4(pick.instance.matrix);
+      point.applyMatrix4(pick.component.matrix);
+      return panel.stage.viewerControls.getPositionOnCanvas(point).distanceTo(pick.canvasPosition);
+    };
+    atom = pick.canvasPosition && distance(atoms[1]) < distance(atoms[0]) ? atoms[1] : atoms[0];
+  }
+  if (atom && atom.chainname === panel.chain && aa3to1[atom.resname]) {
+    key = `${atom.chainname}:${atom.resno}${atom.inscode || ""}`;
+  } else if (pick?.type === "mesh" && pick.component === panel.meshComponent) {
+    const vertex = surfaceHitVertex(pick, panel.mesh, panel.meshGeometry);
+    if (vertex !== null) key = surfaceResidueKey(panel.chain, panel.mesh.residue[vertex]);
+  }
+  return state.faceView?.geometry.nearest[panel.chain]?.[key] ? key : null;
+}
+
+function queueFaceHover(face, key) {
+  face.pendingHover = key;
+  if (face.hoverFrame) return;
+  face.hoverFrame = requestAnimationFrame(() => {
+    face.hoverFrame = null;
+    if (state.faceView === face && state.surfaceViewTab === "faces") applyFaceHover(face, face.pendingHover);
+  });
+}
+
+function clearFaceHover() {
+  const face = state.faceView;
+  if (!face) return;
+  if (face.hoverFrame) cancelAnimationFrame(face.hoverFrame);
+  face.hoverFrame = null;
+  face.pendingHover = null;
+  face.panels.forEach(panel => { panel.hoverInside = false; });
+  applyFaceHover(face, null);
+}
+
+function applyFaceHover(face, key) {
+  if (face.hoverKey === key) return;
+  face.hoverKey = key;
+  const chain = selectionParts(key)?.chain;
+  const match = chain && face.geometry.nearest[chain]?.[key];
+  face.hoverKeys = match ? [key, match.partner_key] : [];
+  updateFaceSurfaces(face);
+  renderFaceHoverReadout(face);
+}
+
+function renderFaceHoverReadout(face) {
+  const readout = $("face-hover-readout");
+  const chain = selectionParts(face.hoverKey)?.chain;
+  const match = chain && face.geometry.nearest[chain]?.[face.hoverKey];
+  if (!match) {
+    readout.textContent = "Hover a residue to highlight its closest partner.";
+    return;
+  }
+  const keys = face.panels.map(panel => face.hoverKeys.find(key => selectionParts(key)?.chain === panel.chain));
+  const labels = keys.map(key => `${selectionParts(key).chain}:${residueLabelFromKey(key)}`);
+  const missing = face.panels.filter((panel, index) => panel.mesh && !panel.meshLabels.has(residueLabelFromKey(keys[index])));
+  readout.textContent = `${labels.join(" ↔ ")} · ${fmt(match.distance_A, 2)} Å (minimum heavy-atom distance)`
+    + (missing.length ? ` · No surface vertices for ${missing.map(panel => panel.chain).join(", ")}; atoms highlighted.` : "");
+}
+
+function installFaceMesh(panel) {
+  const shape = new NGL.Shape(`face-surface-${encodeURIComponent(panel.chain)}`);
+  const geometry = panel.meshGeometry;
+  shape.addMesh(geometry.position, meshColors(panel.chain, geometry), geometry.index, geometry.normal, `${panel.chain} binding face`);
+  installSurfacePicking(shape, geometry);
+  panel.meshComponent = panel.stage.addComponentFromObject(shape);
+  panel.meshComponent.setTransform(panel.transform);
+  panel.meshRep = panel.meshComponent.addRepresentation("buffer", {
+    opacity: state.surfaceOpacity, side: "double", metalness: 0, roughness: 1,
+  });
+}
+
+function updateFaceSurfaces(face) {
+  if (!face.ready) return;
+  for (const panel of face.panels) {
+    const keys = [...new Set([...state.selectedResidues, ...face.hoverKeys])]
+      .filter(key => selectionParts(key)?.chain === panel.chain).sort();
+    const highlightKey = JSON.stringify(keys);
+    if (panel.highlightKey !== highlightKey) {
+      panel.highlightRep.setSelection(keys.map(key => `(${selectionString(key)})`).join(" or ") || "none");
+      panel.highlightKey = highlightKey;
+    }
+    const mesh = state.surface?.status === "complete" ? state.surface.meshes?.[panel.chain] : null;
+    const labels = new Set(keys.map(residueLabelFromKey).filter(Boolean));
+    const selectionKey = JSON.stringify([...labels].sort());
+    const changed = panel.mesh !== mesh || panel.meshSelectionKey !== selectionKey;
+    if (changed) {
+      if (panel.mesh !== mesh) panel.meshLabels = new Set(mesh?.residue || []);
+      if (panel.meshComponent) panel.stage.removeComponent(panel.meshComponent);
+      panel.meshComponent = null;
+      panel.meshRep = null;
+      panel.meshGeometry = null;
+      panel.mesh = mesh;
+      panel.meshSelectionKey = selectionKey;
+      panel.colorKey = null;
+      if (mesh?.index?.length) {
+        panel.meshGeometry = surfaceMeshGeometry(mesh, labels);
+        installFaceMesh(panel);
+        const component = panel.meshComponent;
+        panel.stage.tasks.onZeroOnce(() => {
+          // NGL picks once after mouse movement. A pick during a mesh rebuild
+          // can miss the surface, so refresh it once the replacement is ready.
+          if (state.faceView !== face || panel.meshComponent !== component) return;
+          if (panel.hoverRefreshFrame) cancelAnimationFrame(panel.hoverRefreshFrame);
+          panel.hoverRefreshFrame = requestAnimationFrame(() => {
+            panel.hoverRefreshFrame = null;
+            if (state.faceView === face && state.surfaceViewTab === "faces"
+              && panel.meshComponent === component && panel.hoverInside
+              && panel.stage.mouseObserver.overElement) panel.stage.mouseObserver.hovering = false;
+          });
+        });
+      }
+    }
+    const colorKey = JSON.stringify([state.surfaceScale, state.surfacePadding, selectionKey]);
+    if (panel.meshComponent && panel.colorKey !== colorKey) {
+      panel.meshComponent.object.bufferList[0].setAttributes({color: meshColors(panel.chain, panel.meshGeometry)});
+      panel.colorKey = colorKey;
+    }
+    panel.meshRep?.setParameters({opacity: state.surfaceOpacity});
+    panel.stage.viewer.requestRender();
+  }
+  const meshCount = face.panels.filter(panel => panel.meshComponent).length;
+  const rotationMode = state.faceRotationCoupled ? "Mirrored rotation" : "Independent rotation";
+  faceViewMessage(meshCount === 2
+    ? `${rotationMode} · independent zoom · table selections highlighted · closest residues measured in the original complex.`
+    : state.surface || state.surfaceUnavailable
+      ? `${rotationMode} · surfaces unavailable; selected atoms are highlighted; hover the cartoons to find closest residues.`
+      : `${rotationMode} · selected atoms are highlighted; hover the cartoons while partner surfaces load.`);
+  renderFaceHoverReadout(face);
+}
+
+function initFaceViewEvents() {
+  $("face-rotation-coupled").addEventListener("change", event => setFaceRotationCoupled(event.target.checked));
+  renderFaceRotationControls();
+  for (const [name, tab] of [["interactive", "interactive"], ["faces", "faces"]]) {
+    const button = $(`surface-${name}-tab`);
+    button.addEventListener("click", () => setSurfaceViewTab(tab));
+    button.addEventListener("keydown", event => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      const next = event.key === "Home" ? "interactive" : event.key === "End" ? "faces"
+        : tab === "faces" ? "interactive" : "faces";
+      setSurfaceViewTab(next);
+      $(`surface-${next}-tab`).focus();
+    });
+  }
+  $("face-view-retry").addEventListener("click", () => {
+    state.faceCache.delete(state.pairId);
+    cleanupFaceView();
+    ensureFaceView();
+  });
+  document.querySelectorAll("[data-face-zoom]").forEach(button => {
+    button.addEventListener("click", () => {
+      const panel = state.faceView?.panels.find(item => item.side === button.dataset.faceZoom);
+      panel?.stage.viewerControls.zoom(button.dataset.zoom === "in" ? 0.15 : -0.18);
+    });
+  });
 }
 
 function bindStageSignals() {
@@ -1658,6 +2409,12 @@ $("upload-form").addEventListener("submit", submitUpload);
 $("pdb-form").addEventListener("submit", submitPdb);
 $("pocket-form").addEventListener("submit", submitPocket);
 $("pocket-target").addEventListener("change", updateAnchors);
+$("pocket-partner").addEventListener("change", () => setPocketFeedback(""));
+$("pocket-residues").addEventListener("input", () => setPocketFeedback(""));
+$("pocket-use-selection").addEventListener("click", usePocketSelection);
+document.querySelectorAll('input[name="pocket-mode"]').forEach(input => {
+  input.addEventListener("change", () => setPocketMode(input.value));
+});
 bindDropZone();
 $("pdb-id").addEventListener("blur", inspectPdb);
 $("refresh-history").addEventListener("click", refreshHistory);
@@ -1699,5 +2456,8 @@ $("pocket-result").addEventListener("click", (event) => {
 });
 
 initSurfaceEvents();
+initFaceViewEvents();
+initResidueHighlightPanel();
+setPocketMode("anchor");
 renderDistanceLegend();
 refreshHistory();
