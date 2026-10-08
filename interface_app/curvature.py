@@ -8,10 +8,36 @@ with arbitrary protein-chain identifiers.
 
 from __future__ import annotations
 
+import logging
+import os
+
 import numpy as np
 from scipy.spatial import cKDTree
 
 from .constants import AA3TO1
+from .curvature_cuda import CudaCurvature
+
+
+logger = logging.getLogger(__name__)
+
+
+def _acceleration(zernike, backend):
+    requested = (backend if backend is not None else os.environ.get("INTERFACE_APP_CURVATURE_BACKEND", "auto")).lower()
+    if requested not in {"auto", "cpu", "cuda"}:
+        raise ValueError("INTERFACE_APP_CURVATURE_BACKEND must be auto, cpu, or cuda")
+    metadata = {"requested": requested, "backend": "cpu", "precision": "float64",
+                "device": None, "chains": {}, "fallback_reason": None}
+    if requested == "cpu":
+        return None, metadata
+    try:
+        engine = CudaCurvature(zernike)
+    except Exception as exc:
+        metadata["fallback_reason"] = str(exc)
+        if requested == "cuda":
+            logger.warning("CUDA curvature unavailable; using CPU: %s", exc)
+        return None, metadata
+    metadata["device"] = engine.device_name
+    return engine, metadata
 
 
 def _residue_labels(vertices, coords, radii, atom_labels):
@@ -94,7 +120,7 @@ def _unavailable(exc: Exception) -> dict:
     }
 
 
-def compute_curvature(model, analysis: dict) -> dict:
+def compute_curvature(model, analysis: dict, *, backend: str | None = None) -> dict:
     try:
         import zernike_convexity as zernike
     except Exception as exc:
@@ -107,6 +133,7 @@ def compute_curvature(model, analysis: dict) -> dict:
             raise ValueError("No protein chains were available for surface calculation")
 
         radii = tuple(float(radius) for radius in zernike.RADII_A)
+        cuda, acceleration = _acceleration(zernike, backend)
         report = {
             "source": analysis.get("source", {}).get("name"),
             "parameters": {
@@ -119,6 +146,7 @@ def compute_curvature(model, analysis: dict) -> dict:
                 "sample_nodes": len(zernike.SAMPLES),
                 "curvature_threshold_Ainv": zernike.CURVATURE_THRESHOLD,
                 "curvature_sign": "positive = convex/outward",
+                "acceleration": acceleration,
             },
             "proteins": {},
             "interfaces": {},
@@ -172,16 +200,25 @@ def compute_curvature(model, analysis: dict) -> dict:
             }
             del edge_graph
 
-            principals = {}
-            for radius in radii:
-                key = str(int(radius))
-                principals[key] = zernike._vertex_curvatures(
-                    vertices,
-                    np.arange(len(vertices)),
-                    field,
-                    origin,
-                    radius,
-                )
+            principals = None
+            if cuda is not None:
+                try:
+                    principals = cuda.calculate(vertices, field, origin, radii)
+                    acceleration["chains"][chain_id] = "cuda"
+                except Exception as exc:
+                    logger.warning("CUDA curvature failed on chain %s; using CPU: %s", chain_id, exc)
+                    acceleration["fallback_reason"] = str(exc)
+                    # Retry the entire chain on CPU, including scales already
+                    # evaluated before an allocation or driver failure.
+                    cuda = None
+            if principals is None:
+                acceleration["chains"][chain_id] = "cpu"
+                principals = {
+                    str(int(radius)): zernike._vertex_curvatures(
+                        vertices, np.arange(len(vertices)), field, origin, radius,
+                    )
+                    for radius in radii
+                }
 
             residues = _residue_labels(vertices, coords, atom_radii, atom_labels)
             whole_weights = np.zeros(len(vertices))
@@ -284,6 +321,8 @@ def compute_curvature(model, analysis: dict) -> dict:
             )
 
         scale_six = report["scales"]["6"]
+        used = set(acceleration["chains"].values())
+        acceleration["backend"] = next(iter(used)) if len(used) == 1 else "mixed"
         return {
             "version": "0.2.0",
             "status": "complete",

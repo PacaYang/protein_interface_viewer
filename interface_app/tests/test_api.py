@@ -14,6 +14,7 @@ def test_app_exposes_analysis_routes(tmp_path):
     paths = {route.path for route in app.routes}
     assert "/api/analyses/upload" in paths
     assert "/api/analyses/{analysis_id}/pockets" in paths
+    assert "/api/analyses/{analysis_id}/electrostatics" in paths
     assert "/api/jobs/{job_id}" in paths
 
 
@@ -37,6 +38,57 @@ def test_curvature_endpoint_returns_latest_completed_result(tmp_path):
         endpoint = next(route.endpoint for route in app.routes if route.path == "/api/analyses/{analysis_id}/curvature")
         response = endpoint(analysis["id"])
         assert json.loads(response.body) == {"result": "latest"}
+    finally:
+        app.state.jobs.shutdown()
+
+
+def test_electrostatics_endpoint_returns_latest_artifact_and_requires_analysis(tmp_path):
+    from fastapi import HTTPException
+
+    app = create_app(tmp_path)
+    try:
+        endpoint = next(route.endpoint for route in app.routes
+                        if route.path == "/api/analyses/{analysis_id}/electrostatics")
+        with pytest.raises(HTTPException) as exc:
+            endpoint("missing")
+        assert exc.value.status_code == 404
+        analysis = app.state.store.create_analysis(
+            source_kind="upload", source_name="test.pdb", source_format="pdb", source_bytes=b"END\n",
+        )
+        with pytest.raises(HTTPException) as exc:
+            endpoint(analysis["id"])
+        assert exc.value.status_code == 404
+        job = app.state.store.create_job(analysis["id"], "electrostatics")
+        path = app.state.store.write_json(tmp_path / "electrostatics.json", {"status": "complete"})
+        app.state.store.update_job(job["id"], status="complete", result_path=path)
+        response = endpoint(analysis["id"])
+        assert json.loads(response.body) == {"status": "complete"}
+        retry = app.state.store.create_job(analysis["id"], "electrostatics")
+        unavailable = {"status": "unavailable", "reason": "download failed"}
+        path = app.state.store.write_json(tmp_path / "unavailable.json", unavailable)
+        app.state.store.update_job(retry["id"], status="failed", result_path=path)
+        assert json.loads(endpoint(analysis["id"]).body) == unavailable
+    finally:
+        app.state.jobs.shutdown()
+
+
+def test_electrostatics_retry_and_cancellation_keep_core_state(tmp_path, monkeypatch):
+    app = create_app(tmp_path)
+    try:
+        store = app.state.store
+        analysis = store.create_analysis(source_kind="upload", source_name="test.pdb", source_format="pdb",
+                                         source_bytes=b"END\n")
+        store.update_analysis(analysis["id"], status="running")
+        optional = store.create_job(analysis["id"], "electrostatics")
+        cancel = next(route.endpoint for route in app.routes if route.path == "/api/jobs/{job_id}/cancel")
+        assert cancel(optional["id"])["status"] == "cancelled"
+        assert store.get_analysis(analysis["id"])["status"] == "running"
+        submitted = []
+        monkeypatch.setattr(app.state.jobs, "submit_electrostatics",
+                            lambda analysis_id: submitted.append(analysis_id) or {"id": "replacement"})
+        retry = next(route.endpoint for route in app.routes if route.path == "/api/jobs/{job_id}/retry")
+        assert retry(optional["id"])["job_id"] == "replacement"
+        assert submitted == [analysis["id"]]
     finally:
         app.state.jobs.shutdown()
 

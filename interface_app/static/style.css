@@ -250,7 +250,7 @@ tbody tr:hover td, tbody tr.selected td { background: #eaf7f3; }
 .legend-dot.salt { background: var(--pos); } .legend-dot.like { background: var(--neg); } .legend-dot.hbond { background: #6a55a2; }
 .class-glyph { display: inline-flex; width: 18px; align-items: center; justify-content: center; color: #58636b; font-style: normal; font-size: 13px; line-height: 1; }
 .legend-sasa { display: inline-block; width: 12px; height: 12px; border-radius: 2px; background: var(--ink); }
-.map-curvature-key { display: inline-block; width: 75px; height: 8px; margin-right: 5px; border-radius: 2px; background: linear-gradient(90deg, #8e0d13, #f4f4f1, #2166ac); }
+.map-curvature-key { display: inline-block; width: 75px; height: 8px; margin-right: 5px; border-radius: 2px; background: linear-gradient(90deg, #d95f8a, #fafafa, #1b9e77); }
 .contact-map-table-wrap { max-height: 300px; }
 
 .surface-panel { overflow: hidden; }
@@ -258,10 +258,25 @@ tbody tr:hover td, tbody tr.selected td { background: #eaf7f3; }
 .surface-controls label:not(.toggle) { min-width: 150px; flex: 1 1 155px; }
 .surface-controls label input[type="range"] { margin-top: 6px; }
 .surface-controls output { display: block; color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+.surface-mode-control { display: grid; min-width: 260px; flex: 1.5 1 280px; gap: 5px; align-content: end; padding-bottom: 1px; }
+.surface-control-label { color: var(--muted); font-size: 11px; font-weight: 700; }
+.surface-mode-toggle { display: inline-flex; width: max-content; max-width: 100%; border: 1px solid #c9dcda; border-radius: 7px; overflow: hidden; background: #edf7f5; }
+.mode-button { margin: 0; padding: 6px 10px; border-radius: 0; background: transparent; color: var(--muted); font-size: 12px; font-weight: 700; }
+.mode-button + .mode-button { border-left: 1px solid #c9dcda; }
+.mode-button:hover:not(:disabled) { transform: none; background: #e2f0ee; }
+.mode-button.active { background: var(--accent); color: #fff; }
+.surface-mode-status { min-height: 16px; color: var(--muted); font-size: 10px; line-height: 1.3; overflow-wrap: anywhere; }
+.surface-mode-status.complete { color: #176d4f; }
+.surface-mode-status.failed { color: #8e3b2a; }
+.surface-mode-status.waiting { color: #735b25; }
+.surface-mode-control .quiet { align-self: start; justify-self: start; margin: 0; padding: 1px 0; font-size: 10px; }
 .chain-toggles { display: flex; align-items: center; flex: 2 1 260px; flex-wrap: wrap; gap: 7px 13px; padding-bottom: 9px; }
 .chain-toggles label { flex-direction: row; align-items: center; gap: 5px; white-space: nowrap; font-weight: 600; }
 .surface-colorbar { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; color: var(--muted); font-size: 11px; }
-.surface-color-ramp { display: inline-block; width: 180px; height: 13px; border: 1px solid rgba(0, 0, 0, .12); border-radius: 3px; background: linear-gradient(90deg, #8e0d13, #ef6a61, #f4f4f1, #74add1, #2166ac); }
+.surface-color-ramp { position: relative; display: inline-block; width: 180px; height: 13px; border: 1px solid rgba(0, 0, 0, .12); border-radius: 3px; background: linear-gradient(90deg, #d95f8a, #fafafa, #1b9e77); }
+.surface-ramp-zero { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); color: var(--ink); font-size: 10px; line-height: 1; }
+.surface-color-ramp.convexity { background: linear-gradient(90deg, #d95f8a, #fafafa, #1b9e77); }
+.surface-color-ramp.electrostatics { background: linear-gradient(90deg, #2166ac, #f7f7f7, #b2182b); }
 .surface-grey-swatch { display: inline-block; width: 13px; height: 13px; border-radius: 3px; background: rgb(157, 164, 172); }
 .surface-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 9px; margin-top: 14px; }
 .surface-stat-card { display: grid; gap: 3px; padding: 10px 12px; border: 1px solid var(--gridline); border-radius: 8px; color: var(--muted); font-size: 11px; }
@@ -287,7 +302,7 @@ tbody tr:hover td, tbody tr.selected td { background: #eaf7f3; }
 .curvature-table-wrap { max-height: 300px; margin-top: 12px; }
 
 #surface-interactive-panel[hidden], #surface-faces-panel[hidden],
-#face-view-grid[hidden], #face-view-retry[hidden], #surface-separation-control[hidden],
+#face-view-grid[hidden], #face-view-retry[hidden], #electrostatics-retry[hidden], #surface-separation-control[hidden],
 #chain-toggles[hidden] { display: none; }
 .binding-faces { margin-top: 12px; min-width: 0; }
 .face-view-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }

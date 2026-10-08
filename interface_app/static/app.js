@@ -51,6 +51,14 @@ const state = {
   contact: {cut: 5, type: "all", vals: true, sasa: true},
   viewerLoaded: false,
   curvatureLoaded: false,
+  curvatureJobId: null,
+  electrostatics: null,
+  electrostaticsLoaded: false,
+  electrostaticsJobId: null,
+  electrostaticsStatus: "waiting",
+  electrostaticsRetryable: false,
+  electrostaticsRevision: 0,
+  surfaceMode: "convexity",
   timer: null,
 };
 
@@ -73,8 +81,11 @@ const residueClassName = {
 const distanceBins = [3, 3.5, 4, 5, 6];
 const distanceLabels = ["≤3.0", "3.0–3.5", "3.5–4.0", "4.0–5.0", "5.0–6.0"];
 const curvatureColors = [
-  [0, [142, 13, 19]], [0.25, [239, 106, 97]], [0.5, [244, 244, 241]],
-  [0.75, [116, 173, 209]], [1, [33, 102, 172]],
+  [0, [217, 95, 138]], [0.5, [250, 250, 250]], [1, [27, 158, 119]],
+];
+const convexitySurfaceColors = curvatureColors;
+const electrostaticsColors = [
+  [0, [33, 102, 172]], [0.5, [247, 247, 247]], [1, [178, 24, 43]],
 ];
 const cartoonColors = ["#dfaa25", "#36a58b", "#8b70c7", "#d67439", "#4979b8", "#7c9b5c"];
 
@@ -416,6 +427,14 @@ function resetState() {
   setPocketMode("anchor", true);
   renderHighlightFeedback();
   state.curvatureLoaded = false;
+  state.curvatureJobId = null;
+  state.electrostatics = null;
+  state.electrostaticsLoaded = false;
+  state.electrostaticsJobId = null;
+  state.electrostaticsStatus = "waiting";
+  state.electrostaticsRetryable = false;
+  state.electrostaticsRevision = 0;
+  state.surfaceMode = "convexity";
   state.viewerLoaded = false;
   state.visibleChains = {};
   state.contact = {cut: 5, type: "all", vals: true, sasa: true};
@@ -433,6 +452,7 @@ function resetState() {
   $("surface-opacity").value = "0.55";
   $("surface-padding").value = "2";
   $("surface-separation").value = "0";
+  setElectrostaticsStatus("Preparing optional APBS potential…", "waiting", false);
   $("protein-stats").textContent = "";
   $("surface-pair-stats").textContent = "";
   $("curvature-table").textContent = "";
@@ -497,12 +517,15 @@ async function refreshAnalysis() {
       if (generation !== state.analysisGeneration) return;
     }
     renderJobs(analysis.jobs || []);
-    if (["complete", "failed", "cancelled", "interrupted"].includes(analysis.status)) {
+    const activeJobs = (analysis.jobs || []).some((job) => activeStatuses.includes(job.status));
+    if (["complete", "failed", "cancelled", "interrupted"].includes(analysis.status) && !activeJobs) {
       if (state.timer) {
         clearInterval(state.timer);
         refreshHistory();
       }
       state.timer = null;
+    } else if (!state.timer) {
+      state.timer = setInterval(refreshAnalysis, 1200);
     }
   } catch (error) {
     if (generation === state.analysisGeneration) showError(error);
@@ -519,9 +542,136 @@ function renderStructureMetadata() {
   renderSurface();
 }
 
+function electrostaticsReady() {
+  const data = state.electrostatics;
+  const limit = Number(data?.report?.color_limit_kT_e);
+  const chains = Object.keys(state.surface?.meshes || {});
+  return data?.status === "complete" && Number.isFinite(limit) && limit > 0
+    && chains.length > 0 && chains.every(chain =>
+      data.meshes?.[chain]?.potential_kT_e?.length === state.surface.meshes[chain].position.length / 3)
+    && (!data.curvature_job_id || data.curvature_job_id === state.curvatureJobId);
+}
+
+function electrostaticsJobRetryable() {
+  const job = state.detail?.jobs?.find(item => item.id === state.electrostaticsJobId);
+  return job && ["failed", "cancelled", "interrupted"].includes(job.status);
+}
+
+function setElectrostaticsStatus(text, status = "waiting", retryable = false) {
+  state.electrostaticsStatus = status;
+  state.electrostaticsRetryable = retryable;
+  const host = $("electrostatics-status");
+  const retry = $("electrostatics-retry");
+  if (host) {
+    host.textContent = text.length > 240 ? `${text.slice(0, 237)}…` : text;
+    host.title = text;
+    host.className = `surface-mode-status ${status}`;
+  }
+  if (retry) {
+    retry.hidden = !retryable;
+    retry.textContent = electrostaticsJobRetryable() ? "Retry" : "Reload";
+  }
+  if (renderSurfaceModeControls()) {
+    hideSurfaceTip();
+    renderSurface();
+    if (state.faceView?.ready) updateFaceSurfaces(state.faceView);
+  }
+}
+
+function renderSurfaceModeControls() {
+  const convexity = $("surface-mode-convexity");
+  const electro = $("surface-mode-electrostatics");
+  if (!convexity || !electro) return;
+  const ready = electrostaticsReady();
+  const fellBack = state.surfaceMode === "electrostatics" && !ready;
+  if (fellBack) state.surfaceMode = "convexity";
+  convexity.classList.toggle("active", state.surfaceMode === "convexity");
+  electro.classList.toggle("active", state.surfaceMode === "electrostatics");
+  convexity.setAttribute("aria-pressed", String(state.surfaceMode === "convexity"));
+  electro.setAttribute("aria-pressed", String(state.surfaceMode === "electrostatics"));
+  electro.disabled = !ready;
+  return fellBack;
+}
+
+function setSurfaceMode(mode) {
+  if (mode !== "convexity" && mode !== "electrostatics") return;
+  if (mode === "electrostatics" && !electrostaticsReady()) return;
+  state.surfaceMode = mode;
+  hideSurfaceTip();
+  renderSurfaceModeControls();
+  renderSurface();
+  if (state.faceView?.ready) updateFaceSurfaces(state.faceView);
+}
+
+function renderElectrostaticsResultStatus() {
+  const data = state.electrostatics;
+  if (!data) return;
+  if (data.status !== "complete") {
+    setElectrostaticsStatus(data.reason || "Electrostatics is unavailable.", "failed", true);
+  } else if (state.surface?.status !== "complete") {
+    setElectrostaticsStatus("Waiting for surface mesh…", "waiting", false);
+  } else if (!electrostaticsReady()) {
+    setElectrostaticsStatus("The electrostatic potentials do not match this surface. Analyze the coordinates again to generate matching results.", "failed", true);
+  } else {
+    setElectrostaticsStatus("Ready · APBS potential", "complete", false);
+  }
+}
+
+async function loadElectrostatics() {
+  if (state.electrostaticsLoaded || !state.analysisId) return;
+  state.electrostaticsLoaded = true;
+  const analysisId = state.analysisId;
+  const generation = state.analysisGeneration;
+  const jobId = state.electrostaticsJobId;
+  try {
+    const result = await getJSON(`/api/analyses/${encodeURIComponent(analysisId)}/electrostatics`);
+    if (generation !== state.analysisGeneration || jobId !== state.electrostaticsJobId) return;
+    const limit = Number(result.report?.color_limit_kT_e);
+    if (result.status === "complete" && (!Number.isFinite(limit) || limit <= 0
+      || !Object.values(result.meshes || {}).length
+      || Object.values(result.meshes).some(mesh => !Array.isArray(mesh.potential_kT_e)
+        || mesh.potential_kT_e.some(value => !Number.isFinite(value))))) {
+      throw new Error("The electrostatics result has invalid surface potentials.");
+    }
+    state.electrostatics = result;
+    state.electrostaticsRevision += 1;
+    renderElectrostaticsResultStatus();
+    renderSurface();
+  } catch (error) {
+    if (generation !== state.analysisGeneration || jobId !== state.electrostaticsJobId) return;
+    state.electrostaticsLoaded = false;
+    setElectrostaticsStatus(error.message || "Electrostatics is unavailable.", "failed", true);
+  }
+}
+
+async function retryElectrostatics() {
+  const jobId = state.electrostaticsJobId;
+  if (!jobId) return;
+  if (!electrostaticsJobRetryable()) {
+    state.electrostaticsLoaded = false;
+    await loadElectrostatics();
+    return;
+  }
+  const generation = state.analysisGeneration;
+  $("electrostatics-retry").disabled = true;
+  try {
+    await getJSON(`/api/jobs/${encodeURIComponent(jobId)}/retry`, {method: "POST"});
+    if (generation !== state.analysisGeneration) return;
+    state.electrostatics = null;
+    state.electrostaticsLoaded = false;
+    setElectrostaticsStatus("Retrying APBS potential…", "waiting", false);
+    await refreshAnalysis();
+  } catch (error) {
+    if (generation === state.analysisGeneration) showError(error);
+  } finally {
+    if (generation === state.analysisGeneration) $("electrostatics-retry").disabled = false;
+  }
+}
+
 function renderJobs(jobs) {
   const core = [...jobs].reverse().find((job) => job.kind === "core");
   const curvature = [...jobs].reverse().find((job) => job.kind === "curvature");
+  const electrostatics = [...jobs].reverse().find((job) => job.kind === "electrostatics");
   if (core && core.status === "running") {
     $("curvature").innerHTML = `<strong>Interface analysis running</strong><p class="muted">${esc(core.stage)} · ${Math.round(core.progress * 100)}% · calculating contacts and SASA…</p>`;
     setSurfaceStatus("waiting", "Surface queued");
@@ -531,12 +681,38 @@ function renderJobs(jobs) {
     setSurfaceStatus("failed", "Surface unavailable");
   }
   if (curvature) {
+    if (state.curvatureJobId !== curvature.id) {
+      state.curvatureJobId = curvature.id;
+      state.curvatureLoaded = false;
+    }
     $("curvature").innerHTML = `<strong>Surface curvature</strong><p class="muted">${esc(curvature.stage)} · ${Math.round(curvature.progress * 100)}% · ${esc(curvature.status)}</p>`;
     if (curvature.status === "running" || curvature.status === "queued") {
       setSurfaceStatus("waiting", `Surface ${curvature.status}`);
     }
     if (curvature.result_path && !state.curvatureLoaded) loadCurvature();
     if (curvature.status === "failed") setSurfaceStatus("failed", "Surface unavailable");
+  }
+  if (!electrostatics) {
+    state.electrostaticsJobId = null;
+    setElectrostaticsStatus(activeStatuses.includes(state.detail?.status)
+      ? "Waiting for surface calculation…"
+      : "This saved analysis has no electrostatics. Analyze the coordinates again to generate it.", "waiting", false);
+  } else {
+    if (state.electrostaticsJobId !== electrostatics.id) {
+      state.electrostaticsLoaded = false;
+      state.electrostatics = null;
+    }
+    state.electrostaticsJobId = electrostatics.id;
+    if (electrostatics.status === "queued" || electrostatics.status === "running") {
+      setElectrostaticsStatus(`${electrostatics.stage} · ${Math.round(electrostatics.progress * 100)}%`, "waiting", false);
+    }
+    if (electrostatics.result_path && !state.electrostaticsLoaded) loadElectrostatics();
+    if (electrostatics.status === "failed") {
+      setElectrostaticsStatus(electrostatics.error || "Electrostatics is unavailable.", "failed", true);
+    }
+    if (["interrupted", "cancelled"].includes(electrostatics.status)) {
+      setElectrostaticsStatus(electrostatics.error || `Electrostatics ${electrostatics.status}.`, "failed", true);
+    }
   }
 }
 
@@ -551,9 +727,10 @@ async function loadCurvature() {
   state.curvatureLoaded = true;
   const analysisId = state.analysisId;
   const generation = state.analysisGeneration;
+  const jobId = state.curvatureJobId;
   try {
     const surface = await getJSON(`/api/analyses/${analysisId}/curvature`);
-    if (generation !== state.analysisGeneration) return;
+    if (generation !== state.analysisGeneration || jobId !== state.curvatureJobId) return;
     state.surface = surface;
     if (state.surface.status !== "complete" || !state.surface.report) {
       setSurfaceStatus("failed", state.surface.reason || "Surface unavailable");
@@ -562,11 +739,12 @@ async function loadCurvature() {
       return;
     }
     setSurfaceStatus("complete", "Surface ready");
+    renderElectrostaticsResultStatus();
     renderSurfaceControls();
     renderContactMap();
     renderSurface();
   } catch (error) {
-    if (generation !== state.analysisGeneration) return;
+    if (generation !== state.analysisGeneration || jobId !== state.curvatureJobId) return;
     state.curvatureLoaded = false;
     setSurfaceStatus("failed", "Surface unavailable");
     renderHighlightFeedback();
@@ -1023,11 +1201,11 @@ function buildChainToggles(chains) {
   }
 }
 
-function interpolateColor(value) {
+function interpolateColor(value, palette = curvatureColors) {
   let index = 0;
-  while (index < curvatureColors.length - 2 && value > curvatureColors[index + 1][0]) index += 1;
-  const [a, first] = curvatureColors[index];
-  const [b, second] = curvatureColors[index + 1];
+  while (index < palette.length - 2 && value > palette[index + 1][0]) index += 1;
+  const [a, first] = palette[index];
+  const [b, second] = palette[index + 1];
   const amount = (value - a) / (b - a);
   return first.map((item, component) => (item + amount * (second[component] - item)) / 255);
 }
@@ -1083,9 +1261,17 @@ function meshColors(chain, geometry = state.meshGeometry[chain]) {
   const mesh = state.surface?.meshes?.[chain];
   const report = curvatureReport();
   if (!mesh || !report) return new Float32Array();
-  const values = mesh.h?.[state.surfaceScale] || [];
+  const electroMode = state.surfaceMode === "electrostatics";
+  const electroMesh = state.electrostatics?.meshes?.[chain];
+  const values = electroMode
+    ? (electroMesh?.potential_kT_e || [])
+    : (mesh.h?.[state.surfaceScale] || []);
+  if (electroMode && !electrostaticsReady()) return new Float32Array();
   const colors = new Float32Array((geometry?.vertexMap.length || values.length) * 3);
-  const limit = Number(report.color_limit_Ainv) || 1;
+  const limit = electroMode
+    ? Number(state.electrostatics.report?.color_limit_kT_e) || 1
+    : Number(report.color_limit_Ainv) || 1;
+  const palette = electroMode ? electrostaticsColors : convexitySurfaceColors;
   const pair = state.result?.pairs?.find((item) => item.id === state.pairId);
   const partner = pair && pair.chain_a === chain ? pair.chain_b : pair && pair.chain_b === chain ? pair.chain_a : null;
   const distances = partner ? mesh.contact_distance_dA?.[partner] : null;
@@ -1099,7 +1285,7 @@ function meshColors(chain, geometry = state.meshGeometry[chain]) {
       ? Boolean(distances) && distances[index] <= padding
       : true;
     const color = inPadding
-      ? interpolateColor(Math.max(0, Math.min(1, (values[index] / limit + 1) / 2)))
+      ? interpolateColor(Math.max(0, Math.min(1, (values[index] / limit + 1) / 2)), palette)
       : grey;
     colors[index * 3] = color[0];
     colors[index * 3 + 1] = color[1];
@@ -1185,7 +1371,10 @@ function installSurfaceMeshes() {
 }
 
 function updateMeshColors() {
-  const key = JSON.stringify([state.pairId, state.surfaceScale, state.surfacePadding, state.meshSelectionKey]);
+  const key = JSON.stringify([
+    state.pairId, state.surfaceScale, state.surfacePadding, state.surfaceMode,
+    state.electrostaticsRevision, state.electrostatics?.version, state.meshSelectionKey,
+  ]);
   if (state.meshColorKey === key) return;
   for (const [chain, component] of Object.entries(state.meshComponents)) {
     try {
@@ -1255,7 +1444,9 @@ function renderSurfaceStats() {
       pairHost.appendChild(card);
     }
   }
-  $("surface-note").textContent = `Positive H is convex/outward. Colors are clipped at ±${fmt(report.color_limit_Ainv, 3)} Å⁻¹ for display; numeric values are not clipped. Contact padding changes only the colored display, while separation changes only viewing positions.`;
+  $("surface-note").textContent = state.surfaceMode === "electrostatics" && electrostaticsReady()
+    ? `Blue is negative potential; red is positive potential. APBS/PDB2PQR uses AMBER charges at pH 7.4 on the full protein assembly. Colors are clipped at ±${fmt(state.electrostatics.report.color_limit_kT_e, 3)} kT/e for display; numeric values are not clipped. The curvature resolution control applies to the curvature summaries. Contact padding and separation affect only the display.`
+    : `Pink is concave/inward; green is convex/outward (positive H). Colors are clipped at ±${fmt(report.color_limit_Ainv, 3)} Å⁻¹ for display; numeric values are not clipped. Contact padding changes only the colored display, while separation changes only viewing positions.`;
 }
 
 function renderCurvatureTable() {
@@ -1308,10 +1499,20 @@ function renderSurface() {
   $("surface-padding-value").textContent = paddingText;
   $("surface-separation-value").value = separationText;
   $("surface-separation-value").textContent = separationText;
-  if (report) {
+  renderSurfaceModeControls();
+  const electroMode = state.surfaceMode === "electrostatics" && electrostaticsReady();
+  const colorRamp = $("surface-color-ramp");
+  colorRamp?.classList.toggle("electrostatics", electroMode);
+  colorRamp?.classList.toggle("convexity", !electroMode);
+  if (electroMode) {
+    const limit = Number(state.electrostatics.report?.color_limit_kT_e) || 0;
+    $("surface-color-min").textContent = `Negative −${limit.toFixed(3)}`;
+    $("surface-color-max").textContent = `Positive +${limit.toFixed(3)}`;
+    $("surface-color-label").textContent = "Electrostatic potential φ (kT/e)";
+  } else if (report) {
     const limit = Number(report.color_limit_Ainv) || 0;
-    $("surface-color-min").textContent = `−${limit.toFixed(3)}`;
-    $("surface-color-max").textContent = `+${limit.toFixed(3)}`;
+    $("surface-color-min").textContent = `Concave −${limit.toFixed(3)}`;
+    $("surface-color-max").textContent = `Convex +${limit.toFixed(3)}`;
     $("surface-color-label").textContent = `H (Å⁻¹) · ${state.surfaceScale} Å neighborhoods`;
   }
   renderSurfaceStats();
@@ -1864,13 +2065,25 @@ function focusSurfaceHit(pick) {
   const mesh = state.surface?.meshes?.[chain];
   const vertex = surfaceHitVertex(pick, mesh, state.meshGeometry[chain]);
   if (vertex === null) return null;
-  return {chain, label: mesh.residue[vertex], vertex, h: mesh.h?.[state.surfaceScale]?.[vertex]};
+  return surfaceHitDetail(chain, mesh, vertex);
+}
+
+function surfaceHitDetail(chain, mesh, vertex) {
+  return {
+    chain,
+    label: mesh.residue[vertex],
+    vertex,
+    h: mesh.h?.[state.surfaceScale]?.[vertex],
+    potential: state.electrostatics?.meshes?.[chain]?.potential_kT_e?.[vertex],
+  };
 }
 
 function showSurfaceTip(hit, event) {
   const tip = $("surface-tip");
   const name = chainLabel(hit.chain);
-  tip.textContent = `${name} · ${hit.label} · local H ${fmtH(hit.h)}`;
+  tip.textContent = state.surfaceMode === "electrostatics" && electrostaticsReady()
+    ? `${name} · ${hit.label} · potential ${hit.potential == null ? "n/a" : `${hit.potential >= 0 ? "+" : ""}${Number(hit.potential).toFixed(3)} kT/e`}`
+    : `${name} · ${hit.label} · local H ${fmtH(hit.h)}`;
   tip.classList.add("on");
   tip.setAttribute("aria-hidden", "false");
   if (event) {
@@ -2047,7 +2260,7 @@ function createFacePanel(face, chain, side) {
   host.setAttribute("aria-label", `Binding face of ${chainLabel(chain)} with ${state.faceRotationCoupled ? "mirrored coupled" : "independent"} rotation`);
   $(`face-plane-${side}`).textContent = `${frame.binding_residue_keys.length} binding residues · ${frame.estimated ? "estimated direction" : "fitted binding plane"}`;
   const enter = () => { panel.hoverInside = true; };
-  const leave = () => { panel.hoverInside = false; queueFaceHover(face, null); };
+  const leave = () => { panel.hoverInside = false; queueFaceHover(face, null); hideSurfaceTip(); };
   for (const [event, handler] of [["mouseenter", enter], ["mouseleave", leave]]) {
     host.addEventListener(event, handler);
     panel.handlers.push([event, handler]);
@@ -2055,6 +2268,15 @@ function createFacePanel(face, chain, side) {
   stage.signals.hovered.add(pick => {
     if (state.faceView !== face || state.surfaceViewTab !== "faces" || !panel.hoverInside) return;
     queueFaceHover(face, facePickedResidue(panel, pick));
+    const vertex = pick?.type === "mesh" && pick.component === panel.meshComponent
+      ? surfaceHitVertex(pick, panel.mesh, panel.meshGeometry) : null;
+    if (vertex !== null && pick.canvasPosition) {
+      const bounds = host.getBoundingClientRect();
+      showSurfaceTip(surfaceHitDetail(panel.chain, panel.mesh, vertex), {
+        clientX: bounds.left + pick.canvasPosition.x,
+        clientY: bounds.bottom - pick.canvasPosition.y,
+      });
+    } else hideSurfaceTip();
   });
   return panel;
 }
@@ -2301,7 +2523,10 @@ function updateFaceSurfaces(face) {
         });
       }
     }
-    const colorKey = JSON.stringify([state.surfaceScale, state.surfacePadding, selectionKey]);
+    const colorKey = JSON.stringify([
+      state.surfaceScale, state.surfacePadding, state.surfaceMode,
+      state.electrostaticsRevision, state.electrostatics?.version, selectionKey,
+    ]);
     if (panel.meshComponent && panel.colorKey !== colorKey) {
       panel.meshComponent.object.bufferList[0].setAttributes({color: meshColors(panel.chain, panel.meshGeometry)});
       panel.colorKey = colorKey;
@@ -2370,6 +2595,9 @@ function bindStageSignals() {
 }
 
 function initSurfaceEvents() {
+  $("surface-mode-convexity").addEventListener("click", () => setSurfaceMode("convexity"));
+  $("surface-mode-electrostatics").addEventListener("click", () => setSurfaceMode("electrostatics"));
+  $("electrostatics-retry").addEventListener("click", retryElectrostatics);
   $("surface-opacity").addEventListener("input", (event) => {
     state.surfaceOpacity = Number(event.target.value);
     renderSurface();

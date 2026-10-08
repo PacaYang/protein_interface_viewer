@@ -12,7 +12,7 @@
       <div>
         <p class="eyebrow">STRUCTURAL BIOLOGY WORKBENCH</p>
         <h1>Protein interface analyzer</h1>
-        <p class="lede">Upload a coordinate file or retrieve a PDB entry to inspect contacts, buried surface, Zernike surface shape, and selected binding pockets.</p>
+        <p class="lede">Upload a coordinate file or retrieve a PDB entry to inspect contacts, buried surface, convexity, electrostatics, and selected binding pockets.</p>
       </div>
       <div class="badge">Local analysis · results stay on this computer</div>
     </header>
@@ -80,19 +80,28 @@
 
         <div class="workspace-main">
           <section id="surface-panel" class="panel surface-panel">
-            <div class="section-heading"><div><p class="eyebrow">STRUCTURE AND SURFACE</p><h2>3D Zernike surface</h2><p id="surface-view-help" class="muted">Drag to rotate, scroll to zoom, or select a residue in the surface, contact map, or tables.</p></div><span id="surface-status" class="status-pill">waiting</span></div>
+            <div class="section-heading"><div><p class="eyebrow">STRUCTURE AND SURFACE</p><h2>3D protein surface</h2><p id="surface-view-help" class="muted">Drag to rotate, scroll to zoom, or select a residue in the surface, contact map, or tables.</p></div><span id="surface-status" class="status-pill">waiting</span></div>
             <div class="tab-strip" role="tablist" aria-label="Surface views">
               <button id="surface-interactive-tab" class="tab-button active" type="button" role="tab" aria-selected="true" aria-controls="surface-interactive-panel">Interactive 3D</button>
               <button id="surface-faces-tab" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="surface-faces-panel" tabindex="-1">Binding faces</button>
             </div>
             <div class="surface-controls">
+              <div id="surface-mode-control" class="surface-mode-control" role="group" aria-label="Surface coloring mode">
+                <span class="surface-control-label">Surface coloring</span>
+                <div class="surface-mode-toggle">
+                  <button id="surface-mode-convexity" class="mode-button active" type="button" aria-pressed="true">Convexity</button>
+                  <button id="surface-mode-electrostatics" class="mode-button" type="button" aria-pressed="false" disabled>Electrostatics</button>
+                </div>
+                <span id="electrostatics-status" class="surface-mode-status" role="status">Preparing optional APBS potential…</span>
+                <button id="electrostatics-retry" class="quiet" type="button" hidden>Retry</button>
+              </div>
               <label>Curvature resolution<select id="surface-resolution"><option value="4">4 Å · fine</option><option value="6" selected>6 Å · default</option><option value="8">8 Å · broad</option></select></label>
               <label>Surface opacity<input id="surface-opacity" type="range" min="0" max="0.85" step="0.05" value="0.55"><output id="surface-opacity-value" for="surface-opacity">55%</output></label>
               <label>Contact padding<input id="surface-padding" type="range" min="0" max="8" step="0.5" value="2"><output id="surface-padding-value" for="surface-padding">2.0 Å</output></label>
               <label id="surface-separation-control">Separate opposing surfaces<input id="surface-separation" type="range" min="0" max="12" step="0.5" value="0"><output id="surface-separation-value" for="surface-separation">0.0 Å</output></label>
               <div id="chain-toggles" class="chain-toggles" aria-label="Chain visibility"></div>
             </div>
-            <div class="surface-colorbar"><span id="surface-color-min">−</span><span class="surface-color-ramp" aria-hidden="true"></span><span>0</span><span id="surface-color-max">+</span><span id="surface-color-label">H (Å⁻¹) · 6 Å neighborhoods</span><span class="surface-grey-swatch" aria-hidden="true"></span><span>outside padded contact</span></div>
+            <div class="surface-colorbar"><span id="surface-color-min">Concave</span><span id="surface-color-ramp" class="surface-color-ramp" aria-hidden="true"><span class="surface-ramp-zero">0</span></span><span id="surface-color-max">Convex</span><span id="surface-color-label">H (Å⁻¹) · 6 Å neighborhoods</span><span class="surface-grey-swatch" aria-hidden="true"></span><span>outside padded contact</span></div>
             <div id="protein-stats" class="surface-stats" aria-label="Whole-protein surface summaries"></div>
             <div id="surface-pair-stats" class="surface-stats" aria-label="Selected interface surface summaries"></div>
             <div id="surface-interactive-panel" role="tabpanel" aria-labelledby="surface-interactive-tab">

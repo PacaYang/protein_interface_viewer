@@ -27,7 +27,9 @@ sys.path.insert(0, str(ROOT))
 def prepare_fixtures(artifacts: Path, reuse: bool) -> dict:
     fixture_path = artifacts / "fixtures.json"
     if reuse and fixture_path.exists():
-        return json.loads(fixture_path.read_text())
+        cached = json.loads(fixture_path.read_text())
+        if cached.get("fixture_version") == 2:
+            return cached
 
     from Bio.PDB import MMCIFIO
 
@@ -41,12 +43,23 @@ def prepare_fixtures(artifacts: Path, reuse: bool) -> dict:
     result["version"] = "0.2.0"
     surface = compute_curvature(loaded.model, result)
     assert surface["status"] == "complete", surface
+    electrostatics = {
+        "version": "0.2.0",
+        "status": "complete",
+        "parameters": {"model": "synthetic browser fixture", "units": "kT/e"},
+        "report": {"units": "kT/e", "color_limit_kT_e": 1.0, "min_kT_e": -1.0, "max_kT_e": 1.0},
+        "meshes": {
+            chain: {"potential_kT_e": [round(((index % 9) - 4) / 4, 3)
+                                      for index in range(len(mesh["position"]) // 3)]}
+            for chain, mesh in surface["meshes"].items()
+        },
+    }
     cif_path = artifacts / "1IAR.cif"
     writer = MMCIFIO()
     writer.set_structure(loaded.structure)
     writer.save(str(cif_path))
     store = Store(artifacts / "data")
-    fixtures = {"data_dir": str(store.root), "analyses": {}, "surface": surface}
+    fixtures = {"fixture_version": 2, "data_dir": str(store.root), "analyses": {}, "surface": surface}
     for fmt, source in (("pdb", EXAMPLES / "1IAR.pdb"), ("mmcif", cif_path)):
         analysis = store.create_analysis(
             source_kind="upload", source_name=source.name,
@@ -60,8 +73,12 @@ def prepare_fixtures(artifacts: Path, reuse: bool) -> dict:
         payload["metadata"]["source_format"] = fmt
         path = store.write_json(store.analysis_dir(analysis_id) / "analysis.json", payload)
         store.update_analysis(analysis_id, status="complete", result_path=path)
-        for kind, data in (("core", payload), ("curvature", surface)):
+        for kind, data in (("core", payload), ("curvature", surface), ("electrostatics", electrostatics)):
             job = store.create_job(analysis_id, kind)
+            if kind == "curvature":
+                curvature_id = job["id"]
+            if kind == "electrostatics":
+                data = {**data, "curvature_job_id": curvature_id}
             job_path = store.write_json(store.analysis_dir(analysis_id) / f"{kind}.json", data)
             store.update_job(job["id"], status="complete", stage="complete", progress=1, result_path=job_path)
         fixtures["analyses"][fmt] = analysis_id
@@ -178,6 +195,124 @@ def exercise_browser(url: str, browser_path: str, artifacts: Path, fixtures: dic
                 }""")
                 assert (stats["yellowFaces"] > 0) == bool(page.evaluate("state.selectedResidues.length")), stats
                 return stats
+
+            def check_surface_modes():
+                page.wait_for_function("state.electrostatics?.status === 'complete' && !document.getElementById('surface-mode-electrostatics').disabled")
+                assert page.evaluate("state.surfaceMode") == "convexity"
+                page.locator("#residue-table .focus-row").first.click()
+                page.mouse.move(1, 1)
+                check_surface_selection()
+                before = page.evaluate("() => Object.fromEntries(Object.entries(state.meshComponents).map(([chain, component]) => [chain, Array.from(component.object.bufferList[0].geometry.attributes.color.array)]))")
+                page.locator("#surface-mode-electrostatics").click()
+                page.wait_for_function("state.surfaceMode === 'electrostatics'")
+                page.mouse.move(1, 1)
+                check_surface_selection()
+                after = page.evaluate("() => Object.fromEntries(Object.entries(state.meshComponents).map(([chain, component]) => [chain, Array.from(component.object.bufferList[0].geometry.attributes.color.array)]))")
+                assert any(before[chain] != after[chain] for chain in before), "Electrostatic mode did not recolor the interactive mesh"
+                expect(page.locator("#surface-color-label")).to_contain_text("kT/e")
+                check_interactive_picking()
+                page.locator("#surface-faces-tab").click()
+                wait_faces()
+                page.mouse.move(1, 1)
+                check_face_highlights()
+                # With no temporary hover, the same selected residues give
+                # identical vertex colors in the interactive and both panes.
+                page.wait_for_function("state.faceView.hoverKey === null")
+                face_colors = page.evaluate("() => Object.fromEntries(state.faceView.panels.map(panel => [panel.chain, Array.from(panel.meshComponent.object.bufferList[0].geometry.attributes.color.array)]))")
+                assert face_colors == {chain: after[chain] for chain in face_colors}
+                hover_face("a")
+                expect(page.locator("#surface-tip")).to_contain_text("kT/e")
+                page.mouse.move(1, 1)
+                page.wait_for_function("state.faceView.hoverKey === null")
+                page.locator("#surface-panel").screenshot(path=str(artifacts / "electrostatics-binding-faces.png"))
+                page.locator("#surface-mode-convexity").click()
+                page.wait_for_function("state.surfaceMode === 'convexity'")
+                page.mouse.move(1, 1)
+                expect(page.locator("#surface-color-label")).to_contain_text("H (Å")
+                face_colors = page.evaluate("() => Object.fromEntries(state.faceView.panels.map(panel => [panel.chain, Array.from(panel.meshComponent.object.bufferList[0].geometry.attributes.color.array)]))")
+                assert face_colors == {chain: before[chain] for chain in face_colors}
+                page.locator("#surface-interactive-tab").click()
+                check_surface_selection()
+                page.evaluate("selectResidues([])")
+                print("Surface mode checks passed: electrostatic and convexity colors match in all views; selections and picking are preserved.", flush=True)
+
+            def check_electrostatics_loading(pdb_id):
+                detail = page.evaluate("state.detail")
+                potential = page.evaluate("state.electrostatics")
+                detail_url = f"**/api/analyses/{pdb_id}"
+                potential_url = f"**/api/analyses/{pdb_id}/electrostatics"
+                phase = {"ready": False, "requests": 0}
+
+                # A complete interface analysis must keep polling an active
+                # optional calculation until the electrostatic map arrives.
+                def pending_detail(route):
+                    phase["requests"] += 1
+                    response = copy.deepcopy(detail)
+                    if not phase["ready"]:
+                        job = next(job for job in response["jobs"] if job["kind"] == "electrostatics")
+                        job.update(status="running", stage="Fixture APBS solve",
+                                   progress=min(phase["requests"], 9) / 10, result_path=None)
+                    route.fulfill(status=200, content_type="application/json", body=json.dumps(response))
+
+                page.route(detail_url, pending_detail)
+                open_analysis("pdb")
+                page.wait_for_function("state.detail.status === 'complete' && state.timer !== null "
+                                       "&& state.detail.jobs.some(job => job.kind === 'electrostatics' "
+                                       "&& job.status === 'running' && job.progress >= .2)")
+                expect(page.locator("#surface-mode-electrostatics")).to_be_disabled()
+                expect(page.locator("#electrostatics-status")).to_contain_text("Fixture APBS solve")
+                assert page.evaluate("state.surfaceMode") == "convexity"
+                phase["ready"] = True
+                page.wait_for_function("electrostaticsReady() && state.timer === null")
+                page.unroute(detail_url)
+
+                # A failed optional artifact returns both viewers to convexity
+                # and offers a local reload while the interface stays usable.
+                open_faces()
+                page.mouse.move(1, 1)
+                page.wait_for_function("state.faceView.hoverKey === null")
+                page.locator("#surface-mode-electrostatics").click()
+                unavailable = {"status": "unavailable", "reason": "APBS fixture unavailable",
+                               "report": None, "meshes": {}}
+                page.route(potential_url, lambda route: route.fulfill(
+                    status=200, content_type="application/json", body=json.dumps(unavailable)))
+                page.evaluate("() => { state.electrostaticsLoaded = false; void loadElectrostatics(); }")
+                expect(page.locator("#electrostatics-status")).to_contain_text("APBS fixture unavailable")
+                expect(page.locator("#surface-mode-electrostatics")).to_be_disabled()
+                expect(page.locator("#surface-mode-convexity")).to_have_attribute("aria-pressed", "true")
+                assert page.evaluate("""() => state.detail.status === 'complete'
+                  && Object.entries(state.meshComponents).every(([chain, component]) => {
+                    const actual = component.object.bufferList[0].geometry.attributes.color.array;
+                    const expected = meshColors(chain);
+                    return actual.every((value,index) => value === expected[index]);
+                  }) && state.faceView.panels.every(panel => {
+                    const actual = panel.meshComponent.object.bufferList[0].geometry.attributes.color.array;
+                    const expected = meshColors(panel.chain, panel.meshGeometry);
+                    return actual.every((value,index) => value === expected[index]);
+                  })""")
+                expect(page.locator("#electrostatics-retry")).to_have_text("Reload")
+                page.unroute(potential_url)
+                page.locator("#electrostatics-retry").click()
+                page.wait_for_function("electrostaticsReady()")
+
+                # A response for a previous analysis cannot overwrite the map
+                # belonging to the analysis opened while it was in flight.
+                held = []
+                page.route(potential_url, lambda route: held.append(route))
+                with page.expect_request(f"{url}/api/analyses/{pdb_id}/electrostatics"):
+                    page.evaluate("() => { state.electrostaticsLoaded = false; void loadElectrostatics(); }")
+                page.wait_for_timeout(100)
+                assert len(held) == 1
+                open_analysis("mmcif")
+                page.wait_for_function("electrostaticsReady()")
+                stale = {**potential, "version": "stale electrostatics response"}
+                held[0].fulfill(status=200, content_type="application/json", body=json.dumps(stale))
+                page.wait_for_timeout(100)
+                assert page.evaluate("state.electrostatics.version") != stale["version"]
+                page.unroute(potential_url)
+                open_analysis("pdb")
+                page.wait_for_function("electrostaticsReady()")
+                print("Electrostatic loading checks passed: polling after core completion, unavailable fallback, reload, and stale responses.", flush=True)
 
             def check_boundary_mesh():
                 # Non-coplanar triangles share vertices across a residue boundary.
@@ -366,6 +501,8 @@ def exercise_browser(url: str, browser_path: str, artifacts: Path, fixtures: dic
                     page.mouse.move(x, y)
                     expect(page.locator("#surface-tip")).to_be_visible()
                     expect(page.locator("#surface-tip")).to_contain_text(hit["label"])
+                    expect(page.locator("#surface-tip")).to_contain_text(
+                        "kT/e" if page.evaluate("state.surfaceMode") == "electrostatics" else "local H")
                     page.mouse.click(x, y)
                     page.wait_for_function("key => state.selectedResidues.length === 1 && state.selectedResidues[0] === key",
                                            arg=hit["key"])
@@ -992,6 +1129,8 @@ def exercise_browser(url: str, browser_path: str, artifacts: Path, fixtures: dic
             pdb_id = open_analysis("pdb")
             check_surface_picking()
             check_interactive_picking()
+            check_surface_modes()
+            check_electrostatics_loading(pdb_id)
             if picking_only:
                 assert not errors, errors
                 print("Surface picking browser checks passed.", flush=True)

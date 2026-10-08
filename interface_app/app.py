@@ -186,6 +186,18 @@ def create_app(data_dir: str | Path | None = None) -> FastAPI:
             raise HTTPException(404, "Curvature results are not ready")
         return JSONResponse(json.loads(Path(job["result_path"]).read_text()))
 
+    @app.get("/api/analyses/{analysis_id}/electrostatics")
+    def electrostatics_result(analysis_id: str):
+        item = store.get_analysis(analysis_id)
+        if not item:
+            raise HTTPException(404, "Analysis not found")
+        jobs = store.list_jobs(analysis_id)
+        job = next((x for x in reversed(jobs)
+                    if x["kind"] == "electrostatics" and x.get("result_path")), None)
+        if not job:
+            raise HTTPException(404, "Electrostatics results are not ready")
+        return JSONResponse(json.loads(Path(job["result_path"]).read_text()))
+
     @app.get("/api/analyses/{analysis_id}/pairs/{pair_id}/face-view")
     def face_view(analysis_id: str, pair_id: str):
         item = store.get_analysis(analysis_id)
@@ -280,6 +292,8 @@ def create_app(data_dir: str | Path | None = None) -> FastAPI:
             replacement = manager.submit_pocket(job["analysis_id"], request)
         elif job["kind"] == "curvature":
             replacement = manager.submit_curvature(job["analysis_id"])
+        elif job["kind"] == "electrostatics":
+            replacement = manager.submit_electrostatics(job["analysis_id"])
         else:
             raise HTTPException(400, f"Unsupported job type {job['kind']!r}")
         return {"job_id": replacement["id"], "status_url": f"/api/jobs/{replacement['id']}"}

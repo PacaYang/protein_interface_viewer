@@ -1,0 +1,4 @@
+# Optional GPU curvature backend. Install a PyTorch wheel with CUDA support
+# appropriate for the NVIDIA driver; see README.md for setup and verification.
+-r requirements.txt
+torch>=2.2

@@ -19,6 +19,11 @@ def test_workspace_contains_requested_sections_and_controls():
         "surface-padding",
         "surface-separation",
         "chain-toggles",
+        "surface-mode-control",
+        "surface-mode-convexity",
+        "surface-mode-electrostatics",
+        "electrostatics-status",
+        "electrostatics-retry",
         "pocket-result",
     ):
         assert f'id="{element_id}"' in html
@@ -39,6 +44,9 @@ def test_browser_orchestration_contains_linked_selection_and_pocket_actions():
         "renderContactMap",
         "selectResidues",
         "renderSurface",
+        "setSurfaceMode",
+        "loadElectrostatics",
+        "meshColors",
         "showPocketHighlight",
         "clearPocketHighlight",
         "stopPocketPolling",
@@ -48,6 +56,9 @@ def test_browser_orchestration_contains_linked_selection_and_pocket_actions():
     assert "reference_dSASA_A2" in javascript
     assert "Highlight bound pocket" in javascript
     assert "Cancel highlight" in javascript
+    assert "potential_kT_e" in javascript
+    assert "electrostaticsColors" in javascript
+    assert "convexitySurfaceColors" in javascript
 
 
 def test_history_renders_chain_strips_and_overlay_drawer():
