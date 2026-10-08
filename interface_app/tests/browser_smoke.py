@@ -92,7 +92,8 @@ def free_port() -> int:
         return sock.getsockname()[1]
 
 
-def exercise_browser(url: str, browser_path: str, artifacts: Path, fixtures: dict, *, faces_only: bool = False, picking_only: bool = False):
+def exercise_browser(url: str, browser_path: str, artifacts: Path, fixtures: dict, *, faces_only: bool = False,
+                     picking_only: bool = False, hover_profile: bool = False, baseline_app_js: Path | None = None):
     from playwright.sync_api import expect, sync_playwright
 
     with sync_playwright() as playwright:
@@ -104,6 +105,9 @@ def exercise_browser(url: str, browser_path: str, artifacts: Path, fixtures: dic
             page = browser.new_page(viewport={"width": 1440, "height": 1000})
             errors = []
             page.on("pageerror", lambda error: errors.append(str(error)))
+            if baseline_app_js:
+                page.route("**/static/app.js", lambda route: route.fulfill(
+                    content_type="application/javascript", body=baseline_app_js.read_text()))
             page.goto(url)
 
             def open_analysis(fmt):
@@ -111,7 +115,7 @@ def exercise_browser(url: str, browser_path: str, artifacts: Path, fixtures: dic
                 page.locator(f'.history-row[data-id="{analysis_id}"]').click()
                 page.wait_for_function(
                     "id => state.analysisId === id && state.surface?.status === 'complete' "
-                    "&& Object.keys(state.meshComponents).length === 2", arg=analysis_id,
+                    f"&& Object.keys(state.meshComponents).length === {len(fixtures['surface']['meshes'])}", arg=analysis_id,
                     timeout=60_000,
                 )
                 return analysis_id
@@ -336,18 +340,23 @@ def exercise_browser(url: str, browser_path: str, artifacts: Path, fixtures: dic
                     const original = surfaceMeshGeometry(mesh, new Set());
                     state.meshGeometry = {A: original};
                     const originalColors = meshColors('A');
-                    for (const [labels, expectedFaces] of [
+                    const display = surfaceMeshGeometry(mesh, new Set());
+                    state.meshGeometry.A = display;
+                    const shape = new NGL.Shape('boundary-test');
+                    shape.addMesh(display.position, meshColors('A'), display.index, display.normal, 'boundary');
+                    installSurfacePicking(shape, display);
+                    const buffer = shape.bufferList[0];
+                    const pickingGeometry = buffer.getPickingMesh().geometry;
+                    try { for (const [labels, expectedFaces] of [
                       [['R12'], [true, false, false]],
                       [['R12', 'S14'], [true, true, true]],
                       [['G13B'], [true, true, true]],
                       [['T15'], [false, false, true]],
                       [[], [false, false, false]],
                     ]) {
-                      const display = surfaceMeshGeometry(mesh, new Set(labels));
-                      state.meshGeometry.A = display;
-                      const shape = new NGL.Shape('boundary-test');
-                      shape.addMesh(display.position, meshColors('A'), display.index, display.normal, 'boundary');
-                      try {
+                      updateSurfaceMeshSelection(display, new Set(labels));
+                      buffer.setAttributes({index:display.index});
+                      require(buffer.getPickingMesh().geometry === pickingGeometry, 'Stable boundary picking geometry');
                         const geometry = shape.bufferList[0].geometry;
                         const colors = geometry.attributes.color.array;
                         for (let face = 0; face < 3; face++) {
@@ -363,8 +372,7 @@ def exercise_browser(url: str, browser_path: str, artifacts: Path, fixtures: dic
                             }
                           }
                         }
-                      } finally { shape.dispose(); }
-                    }
+                    } } finally { shape.dispose(); }
                     return true;
                   } finally {
                     state.surface = saved.surface;
@@ -876,13 +884,15 @@ def exercise_browser(url: str, browser_path: str, artifacts: Path, fixtures: dic
                 page.evaluate("cleanupFaceView(); void ensureFaceView()")
                 wait_faces()
                 hover_face("b")
-                # A completed hover pick during a mesh rebuild must recover
-                # when the new surface arrives, even without a mouse move.
+                # A replacement scientific mesh must recover under a stationary
+                # pointer; highlighting itself no longer replaces the mesh.
                 hovered = page.evaluate("state.faceView.hoverKey")
                 page.evaluate("""() => {
                   const face = state.faceView;
                   applyFaceHover(face, null);
                   const panel = face.panels.find(panel => panel.side === 'b');
+                  state.surface.meshes[panel.chain] = {...panel.mesh};
+                  updateFaceSurfaces(face);
                   panel.stage.mouseObserver.moving = false;
                   panel.stage.mouseObserver.hovering = true;
                 }""")
@@ -956,6 +966,120 @@ def exercise_browser(url: str, browser_path: str, artifacts: Path, fixtures: dic
                 assert page.evaluate("state.faceView.hoverKey") is None
                 check_face_frames()
                 page.locator("#surface-interactive-tab").click()
+
+            def check_hover_work():
+                saved_selection = page.evaluate("state.selectedResidues")
+                open_faces()
+                page.mouse.move(1, 1)
+                page.wait_for_function("state.faceView.hoverKey === null")
+                page.evaluate("""() => {
+                  const stages = [state.stage, ...state.faceView.panels.map(panel => panel.stage)];
+                  window.hoverWork = stages.map(stage => {
+                    const metrics = {picks:0, dragPicks:0, surfaceInstalls:0};
+                    const pick = stage.pickingControls.pick;
+                    const add = stage.addComponentFromObject;
+                    stage.pickingControls.pick = function(...args) {
+                      metrics.picks++;
+                      if (stage.mouseObserver.pressed) metrics.dragPicks++;
+                      return pick.apply(this, args);
+                    };
+                    stage.addComponentFromObject = function(object, ...args) {
+                      if (object.name?.includes('surface-')) metrics.surfaceInstalls++;
+                      return add.call(this, object, ...args);
+                    };
+                    return {stage, metrics, pick, add};
+                  });
+                  const components = [...Object.values(state.meshComponents),
+                    ...state.faceView.panels.map(panel => panel.meshComponent)];
+                  window.hoverSurfaces = components.map(component => {
+                    const buffer = component.object.bufferList[0], geometry = buffer.geometry;
+                    return {component, buffer, geometry, position:geometry.attributes.position.array,
+                      normal:geometry.attributes.normal.array, index:geometry.index.array,
+                      color:geometry.attributes.color.array, picking:buffer.getPickingMesh().geometry};
+                  });
+                }""")
+                keys = page.evaluate("""() => Object.entries(state.surface.meshes).flatMap(([chain, mesh]) =>
+                  [...new Set(mesh.residue)].slice(0, 2).map(label => surfaceResidueKey(chain, label)))""")
+                for selection in [keys, keys[:1], [], saved_selection]:
+                    page.evaluate("keys => selectResidues(keys)", selection)
+                    check_surface_selection()
+                    check_face_highlights()
+
+                hit = hover_face("a")
+                page.wait_for_timeout(500)
+                before = page.evaluate("hoverWork.map(item => ({...item.metrics}))")
+                page.wait_for_timeout(500)
+                assert page.evaluate("hoverWork.map(item => ({...item.metrics}))") == before, "Stationary hover kept picking or installing surfaces"
+                assert page.evaluate("hoverWork[0].stage.mouseObserver.hoverTimeout") == -1
+                assert page.evaluate("hoverWork.slice(1).every(item => item.stage.mouseObserver.hoverTimeout === 75)")
+
+                # Force NGL's scroll-style early hover notification during the
+                # debounce interval: the guard must run before the GPU pick.
+                assert page.evaluate("""() => {
+                  const item = hoverWork[1], mouse = item.stage.mouseObserver;
+                  const before = item.metrics.picks;
+                  mouse.lastMoved = performance.now();
+                  mouse.signals.hovered.dispatch(mouse.canvasPosition.x, mouse.canvasPosition.y);
+                  return item.metrics.picks === before;
+                }"""), "A recent pointer movement still triggered GPU picking"
+
+                box = page.locator("#face-view-a canvas").bounding_box()
+                x, y = box["x"] + hit["x"], box["y"] + box["height"] - hit["y"]
+                page.mouse.down()
+                for step in range(1, 5):
+                    page.mouse.move(x + step * 4, y + step * 2)
+                    page.wait_for_timeout(120)
+                    actual = page.evaluate("state.faceView.panels[0].stage.mouseObserver.position.toArray()")
+                    assert abs(actual[0] - (x + step * 4)) < 1 and abs(actual[1] - (y + step * 2)) < 1, "Hover refresh changed the drag coordinates"
+                assert page.evaluate("hoverWork.every(item => item.metrics.dragPicks === 0)"), "Hover picked during a paused drag"
+                count = page.evaluate("hoverWork[1].metrics.picks")
+                page.mouse.up()
+                page.wait_for_function("count => hoverWork[1].metrics.picks > count", arg=count)
+                page.mouse.move(1, 1)
+                page.wait_for_function("state.faceView.hoverKey === null")
+                assert page.evaluate("state.selectedResidues") == saved_selection
+
+                # Interactive 3D also suppresses picks throughout a drag and
+                # refreshes after release, even without another pointer move.
+                page.locator("#surface-interactive-tab").click()
+                page.locator("#surface-view").scroll_into_view_if_needed()
+                assert page.evaluate("hoverWork.slice(1).every(item => item.stage.mouseObserver.hoverTimeout === -1)")
+                box = page.locator("#surface-view canvas").bounding_box()
+                x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+                page.mouse.move(x, y)
+                page.wait_for_timeout(300)
+                page.mouse.down()
+                page.mouse.move(x + 20, y + 12, steps=5)
+                page.wait_for_timeout(200)
+                actual = page.evaluate("state.stage.mouseObserver.position.toArray()")
+                assert abs(actual[0] - (x + 20)) < 1 and abs(actual[1] - (y + 12)) < 1
+                assert page.evaluate("hoverWork.every(item => item.metrics.dragPicks === 0)")
+                count = page.evaluate("hoverWork[0].metrics.picks")
+                page.mouse.up()
+                page.wait_for_function("count => hoverWork[0].metrics.picks > count", arg=count)
+                page.wait_for_timeout(500)
+                before = page.evaluate("hoverWork.map(item => ({...item.metrics}))")
+                page.wait_for_timeout(500)
+                assert page.evaluate("hoverWork.map(item => ({...item.metrics}))") == before
+
+                assert page.evaluate("""() => hoverWork.every(item => item.metrics.surfaceInstalls === 0)
+                  && hoverSurfaces.every(item => item.component.stage.compList.includes(item.component)
+                    && item.component.object.bufferList[0] === item.buffer && item.buffer.geometry === item.geometry
+                    && item.geometry.attributes.position.array === item.position
+                    && item.geometry.attributes.normal.array === item.normal
+                    && item.geometry.attributes.color.array === item.color && item.geometry.index.array === item.index
+                    && item.buffer.getPickingMesh().geometry === item.picking)"""), "Hover or selection replaced surface buffers"
+                metrics = page.evaluate("hoverWork.map(item => ({...item.metrics}))")
+                page.evaluate("""() => {
+                  for (const {stage, pick, add} of hoverWork) {
+                    stage.pickingControls.pick = pick;
+                    stage.addComponentFromObject = add;
+                  }
+                  delete window.hoverWork;
+                  delete window.hoverSurfaces;
+                }""")
+                page.mouse.move(1, 1)
+                print(f"Hover work checks passed: stable buffers, idle picking stops, no drag picking, release recovery, and inactive tabs. {metrics}", flush=True)
 
             def check_face_loading_and_mobile(pdb_id):
                 open_analysis("mmcif")
@@ -1121,16 +1245,133 @@ def exercise_browser(url: str, browser_path: str, artifacts: Path, fixtures: dic
                 page.evaluate("window.disposedFacePanels = state.faceView.panels; closeWorkspace()")
                 assert page.evaluate("state.faceView === null && state.faceCache.size === 0 "
                                      "&& disposedFacePanels.every(panel => panel.stage.compList.length === 0 "
+                                     "&& panel.stage.surfaceHoverPolicy.disposed "
                                      "&& panel.host.childElementCount === 0 "
                                      "&& !panel.stage.viewerControls.signals.changed.has(panel.rotationChanged))")
                 assert not errors, errors
                 print("Binding-face browser checks passed: mirrored mouse/touch rotation, persistent table selections, linked hover, movement locks, independent zoom, loading/retry, stale geometry, resize/disposal, PDB/mmCIF, and mobile layout.", flush=True)
 
+            def profile_hover():
+                label = "baseline" if baseline_app_js else "updated"
+                trace = page.context.new_cdp_session(page)
+                completed = []
+                trace.on("Tracing.tracingComplete", lambda event: completed.append(event))
+                trace.send("Tracing.start", {"categories": "devtools.timeline,v8,blink.user_timing",
+                                             "transferMode": "ReturnAsStream"})
+                page.evaluate("""() => {
+                  window.hoverProfile = {phase:null, samples:{}, lastFrame:null};
+                  const add = (key, value) => {
+                    if (!hoverProfile.phase) return;
+                    const sample = hoverProfile.samples[hoverProfile.phase];
+                    (sample[key] ||= []).push(value);
+                  };
+                  const tick = time => {
+                    if (hoverProfile.lastFrame !== null) add('frame_ms', time-hoverProfile.lastFrame);
+                    hoverProfile.lastFrame = time;
+                    requestAnimationFrame(tick);
+                  };
+                  requestAnimationFrame(tick);
+                  new PerformanceObserver(list => {
+                    for (const entry of list.getEntries()) add('long_task_ms', entry.duration);
+                  }).observe({entryTypes:['longtask']});
+                  for (const name of ['surfaceMeshGeometry','installSurfacePicking']) {
+                    const original = window[name];
+                    window[name] = function(...args) {
+                      const start = performance.now();
+                      const result = original.apply(this,args);
+                      add(name + '_ms', performance.now()-start);
+                      return result;
+                    };
+                  }
+                  window.instrumentHoverStage = stage => {
+                    const pick = stage.pickingControls.pick;
+                    stage.pickingControls.pick = function(...args) {
+                      const start = performance.now();
+                      const result = pick.apply(this,args);
+                      add('pick_ms', performance.now()-start);
+                      if (stage.mouseObserver.pressed) add('drag_pick_ms', performance.now()-start);
+                      return result;
+                    };
+                  };
+                  instrumentHoverStage(state.stage);
+                }""")
+
+                def begin(phase):
+                    page.evaluate("phase => { hoverProfile.phase = phase; hoverProfile.samples[phase] = {}; hoverProfile.lastFrame = null; performance.mark(phase + '-start'); }", phase)
+
+                def end():
+                    page.evaluate("() => { performance.mark(hoverProfile.phase + '-end'); hoverProfile.phase = null; }")
+
+                def sample_view(prefix, locator, hit=None):
+                    box = page.locator(locator).bounding_box()
+                    x = box["x"] + (hit["x"] if hit else box["width"] / 2)
+                    y = box["y"] + box["height"] - (hit["y"] if hit else box["height"] / 2)
+                    begin(prefix + "_moving")
+                    for step in range(24):
+                        page.mouse.move(x + 14 * math.sin(step * 0.35), y + 8 * math.cos(step * 0.35))
+                        page.wait_for_timeout(20)
+                    end()
+                    page.wait_for_timeout(500)
+                    begin(prefix + "_stationary")
+                    page.wait_for_timeout(1000)
+                    end()
+                    begin(prefix + "_dragging")
+                    page.mouse.down()
+                    for step in range(24):
+                        page.mouse.move(x + step * 2, y + step)
+                        page.wait_for_timeout(20)
+                    end()
+                    page.mouse.up()
+                    page.wait_for_timeout(500)
+                    page.mouse.move(1, 1)
+
+                page.locator("#surface-view").scroll_into_view_if_needed()
+                page.wait_for_timeout(500)
+                sample_view("interactive", "#surface-view canvas")
+                open_faces()
+                page.evaluate("state.faceView.panels.forEach(panel => instrumentHoverStage(panel.stage))")
+                hit = find_face_pick("a")
+                sample_view("faces", "#face-view-a canvas", hit)
+                raw = page.evaluate("hoverProfile.samples")
+                report = {"label": label, "vertices": sum(len(mesh["position"]) // 3 for mesh in fixtures["surface"]["meshes"].values()),
+                          "samples": raw, "summary": {}}
+                for phase, measurements in raw.items():
+                    report["summary"][phase] = {}
+                    for metric, values in measurements.items():
+                        ordered = sorted(values)
+                        report["summary"][phase][metric] = {
+                            "count": len(values), "median": ordered[len(ordered) // 2],
+                            "p95": ordered[min(len(ordered) - 1, math.floor(len(ordered) * 0.95))],
+                            "total": sum(values),
+                        }
+                (artifacts / f"hover-{label}.json").write_text(json.dumps(report, indent=2))
+                print(f"Hover profile {label}: {json.dumps(report['summary'])}", flush=True)
+                trace.send("Tracing.end")
+                deadline = time.monotonic() + 30
+                while not completed and time.monotonic() < deadline:
+                    page.wait_for_timeout(50)
+                assert completed, "Chrome did not finish the performance trace"
+                stream = completed[0]["stream"]
+                with (artifacts / f"hover-{label}-trace.json").open("w") as output:
+                    while True:
+                        chunk = trace.send("IO.read", {"handle": stream})
+                        output.write(chunk["data"])
+                        if chunk.get("eof"):
+                            break
+                trace.send("IO.close", {"handle": stream})
+                trace.detach()
+                assert not errors, errors
+
             pdb_id = open_analysis("pdb")
+            if hover_profile:
+                profile_hover()
+                return
+            check_boundary_mesh()
             check_surface_picking()
             check_interactive_picking()
             check_surface_modes()
             check_electrostatics_loading(pdb_id)
+            check_hover_work()
             if picking_only:
                 assert not errors, errors
                 print("Surface picking browser checks passed.", flush=True)
@@ -1358,7 +1599,11 @@ def main():
     parser.add_argument("--reuse-fixtures", action="store_true")
     parser.add_argument("--binding-faces-only", action="store_true", help="Run side-by-side rotation, selection, and hover checks without repeating pocket jobs")
     parser.add_argument("--picking-only", action="store_true", help="Run surface picking regression checks")
+    parser.add_argument("--hover-profile", action="store_true", help="Record hover, dragging, and stationary-pointer performance and a Chrome trace")
+    parser.add_argument("--baseline-app-js", type=Path, help="Load an earlier app.js for comparison with --hover-profile")
     args = parser.parse_args()
+    if args.baseline_app_js and not args.hover_profile:
+        parser.error("--baseline-app-js requires --hover-profile")
     artifacts = args.artifacts.resolve()
     artifacts.mkdir(parents=True, exist_ok=True)
     print("Preparing browser fixtures…", flush=True)
@@ -1383,7 +1628,8 @@ def main():
                     time.sleep(0.1)
             else:
                 raise RuntimeError("Server did not become ready")
-            exercise_browser(url, args.browser, artifacts, fixtures, faces_only=args.binding_faces_only, picking_only=args.picking_only)
+            exercise_browser(url, args.browser, artifacts, fixtures, faces_only=args.binding_faces_only,
+                             picking_only=args.picking_only, hover_profile=args.hover_profile, baseline_app_js=args.baseline_app_js)
         finally:
             server.terminate()
             try:

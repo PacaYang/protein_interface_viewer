@@ -116,6 +116,10 @@ analysis data local to the browser app:
   a distant residue. This applies to both surface viewer tabs and accounts for
   camera orientation, zoom, and chain separation.
   Atom-level ball-and-stick selection remains available alongside the patches.
+  Hover feedback updates after a 75 ms pause in pointer movement. Hover picking
+  pauses during mouse/touch drags and in inactive viewer tabs; clicks select
+  residues immediately. Surface geometry and triangle picking buffers are cached,
+  and residue highlights update triangle indices without rebuilding the meshes.
 - The surface viewer's **Binding faces** tab shows the selected interface's
   two partner chains side by side. Each chain initially faces the viewer along
   its own binding-plane normal, using an orthographic projection and a shared up

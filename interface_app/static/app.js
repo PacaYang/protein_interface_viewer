@@ -63,6 +63,8 @@ const state = {
 };
 
 const $ = (id) => document.getElementById(id);
+const surfaceHoverDelay = 75;
+const surfacePointer = {x: NaN, y: NaN};
 const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
 }[c]));
@@ -814,8 +816,10 @@ async function loadStructureViewer() {
     const format = state.result.source?.format || state.detail.source_format;
     state.structureFormat = format;
     state.structureText = format === "mmcif" ? nglCompatibleMmcif(raw) : raw;
-    const stage = new NGL.Stage($("surface-view"), {backgroundColor: "#eef2f1", sampleLevel: 0});
+    const stage = new NGL.Stage($("surface-view"), {backgroundColor: "#eef2f1", sampleLevel: 0,
+      hoverTimeout: surfaceHoverDelay});
     state.stage = stage;
+    installSurfaceHoverPolicy(stage, () => state.stage === stage && state.surfaceViewTab === "interactive");
     const extension = format === "mmcif" ? "cif" : "pdb";
     const chains = state.result.metadata?.chains || [];
     const blob = new Blob([state.structureText], {type: "text/plain"});
@@ -1213,48 +1217,58 @@ function interpolateColor(value, palette = curvatureColors) {
 function surfaceMeshGeometry(mesh, selectedLabels) {
   let source = state.meshSourceData.get(mesh);
   if (!source) {
-    const position = new Float32Array(mesh.position);
+    const originalPosition = new Float32Array(mesh.position);
     const index = new Uint32Array(mesh.index);
-    // Compute smooth normals on the original surface once. Splitting vertices
-    // at a yellow patch boundary must not change the surface's lighting.
-    const buffer = new NGL.MeshBuffer({position, index, color: new Float32Array(position.length)});
-    const normal = new Float32Array(buffer.geometry.attributes.normal.array);
+    const buffer = new NGL.MeshBuffer({position: originalPosition, index,
+      color: new Float32Array(originalPosition.length)});
+    const vertexCount = originalPosition.length / 3;
+    // Reserve a yellow copy of every vertex once. Switching triangle indices
+    // preserves smooth normals and avoids rebuilding either mesh on hover.
+    const position = new Float32Array(originalPosition.length * 2);
+    const normal = new Float32Array(position.length);
+    position.set(originalPosition);
+    position.set(originalPosition, originalPosition.length);
+    normal.set(buffer.geometry.attributes.normal.array);
+    normal.set(normal.subarray(0, originalPosition.length), originalPosition.length);
     buffer.dispose();
-    source = {position, index, normal};
+    const vertexMap = Uint32Array.from({length: vertexCount * 2}, (_, vertex) => vertex % vertexCount);
+    const facesByResidue = new Map();
+    for (let face = 0; face < index.length; face += 3) {
+      const labels = new Set([mesh.residue[index[face]], mesh.residue[index[face + 1]], mesh.residue[index[face + 2]]]);
+      for (const label of labels) {
+        if (!facesByResidue.has(label)) facesByResidue.set(label, []);
+        facesByResidue.get(label).push(face);
+      }
+    }
+    for (const [label, faces] of facesByResidue) facesByResidue.set(label, new Uint32Array(faces));
+    source = {position, index, normal, vertexMap, vertexCount, facesByResidue};
     state.meshSourceData.set(mesh, source);
   }
-  const vertexCount = source.position.length / 3;
-  const selected = mesh.residue.map((label) => selectedLabels.has(label));
-  const selectedFaces = [];
-  const copies = new Map();
-  for (let face = 0; face < source.index.length; face += 3) {
-    const vertices = source.index.subarray(face, face + 3);
-    if (!vertices.some((vertex) => selected[vertex])) continue;
-    selectedFaces.push(face);
-    for (const vertex of vertices) {
-      if (!copies.has(vertex)) copies.set(vertex, vertexCount + copies.size);
-    }
-  }
-  const vertexMap = Uint32Array.from({length: vertexCount + copies.size}, (_, index) => index);
-  if (!copies.size) return {...source, vertexMap, highlightedVertexStart: vertexCount};
+  const geometry = {source, position: source.position, normal: source.normal, vertexMap: source.vertexMap,
+    index: new Uint32Array(source.index), highlightedVertexStart: source.vertexCount,
+    selectedLabels: new Set(), selectedFaceCounts: new Uint8Array(source.index.length / 3)};
+  updateSurfaceMeshSelection(geometry, selectedLabels);
+  return geometry;
+}
 
-  // Give every selected face its own yellow vertices. Neighboring unselected
-  // faces retain their original vertices and curvature colors, without color
-  // interpolation or a second transparent mesh overlapping the surface.
-  const position = new Float32Array(vertexMap.length * 3);
-  const normal = new Float32Array(vertexMap.length * 3);
-  const index = new Uint32Array(source.index);
-  position.set(source.position);
-  normal.set(source.normal);
-  for (const [original, copy] of copies) {
-    position.set(source.position.subarray(original * 3, original * 3 + 3), copy * 3);
-    normal.set(source.normal.subarray(original * 3, original * 3 + 3), copy * 3);
-    vertexMap[copy] = original;
-  }
-  for (const face of selectedFaces) {
-    for (let corner = 0; corner < 3; corner += 1) index[face + corner] = copies.get(source.index[face + corner]);
-  }
-  return {position, index, normal, vertexMap, highlightedVertexStart: vertexCount};
+function updateSurfaceMeshSelection(geometry, selectedLabels) {
+  const {source, selectedFaceCounts, index} = geometry;
+  let changed = false;
+  const update = (label, amount) => {
+    for (const face of source.facesByResidue.get(label) || []) {
+      const wasSelected = selectedFaceCounts[face / 3] > 0;
+      selectedFaceCounts[face / 3] += amount;
+      const selected = selectedFaceCounts[face / 3] > 0;
+      if (selected === wasSelected) continue;
+      const offset = selected ? source.vertexCount : 0;
+      for (let corner = 0; corner < 3; corner++) index[face + corner] = source.index[face + corner] + offset;
+      changed = true;
+    }
+  };
+  for (const label of geometry.selectedLabels) if (!selectedLabels.has(label)) update(label, -1);
+  for (const label of selectedLabels) if (!geometry.selectedLabels.has(label)) update(label, 1);
+  geometry.selectedLabels = new Set(selectedLabels);
+  return changed;
 }
 
 function meshColors(chain, geometry = state.meshGeometry[chain]) {
@@ -1304,14 +1318,17 @@ function installSurfacePicking(shape, geometry) {
   // vertex IDs can therefore decode to an unrelated vertex anywhere in the
   // mesh. Use a separate picking geometry with a constant ID per triangle;
   // leave the indexed display mesh and its smooth normals untouched.
-  const position = new Float32Array(geometry.index.length * 3);
-  const primitiveId = new Float32Array(geometry.index.length);
-  for (let corner = 0; corner < geometry.index.length; corner += 1) {
-    const vertex = geometry.index[corner];
-    position.set(geometry.position.subarray(vertex * 3, vertex * 3 + 3), corner * 3);
-    primitiveId[corner] = Math.floor(corner / 3);
+  const source = geometry.source;
+  if (!source.pickingPosition) {
+    source.pickingPosition = new Float32Array(source.index.length * 3);
+    source.pickingIds = new Float32Array(source.index.length);
+    for (let corner = 0; corner < source.index.length; corner++) {
+      const vertex = source.index[corner];
+      source.pickingPosition.set(source.position.subarray(vertex * 3, vertex * 3 + 3), corner * 3);
+      source.pickingIds[corner] = Math.floor(corner / 3);
+    }
   }
-  const picking = new NGL.MeshBuffer({position, primitiveId,
+  const picking = new NGL.MeshBuffer({position: source.pickingPosition, primitiveId: source.pickingIds,
     color: new Float32Array(0), normal: new Float32Array(0)});
   const buffer = shape.bufferList[0];
   const getPickingMesh = buffer.getPickingMesh.bind(buffer);
@@ -1339,6 +1356,7 @@ function installSurfaceMesh(chain) {
     roughness: 1,
   });
   state.meshComponentChains.set(shapeName, chain);
+  refreshSurfaceHoverWhenReady(state.stage, () => state.meshComponents[chain] === component);
 }
 
 function installSurfaceMeshes() {
@@ -1346,24 +1364,30 @@ function installSurfaceMeshes() {
   const meshes = state.surface.meshes || {};
   const selectionKey = JSON.stringify([...state.selectedResidues].sort());
   if (state.meshSource === meshes && state.meshSelectionKey === selectionKey) return;
-  for (const component of Object.values(state.meshComponents)) {
-    try { state.stage.removeComponent(component); } catch (_) {}
+  if (state.meshSource !== meshes) {
+    for (const component of Object.values(state.meshComponents)) {
+      try { state.stage.removeComponent(component); } catch (_) {}
+    }
+    state.meshComponents = {};
+    state.meshReps = {};
+    state.meshComponentChains = new Map();
+    state.meshGeometry = {};
+    state.meshSource = meshes;
+    state.meshColorKey = null;
   }
-  state.meshComponents = {};
-  state.meshReps = {};
-  state.meshComponentChains = new Map();
-  state.meshGeometry = {};
-  state.meshSource = meshes;
   state.meshSelectionKey = selectionKey;
-  state.meshColorKey = null;
   for (const [chain, mesh] of Object.entries(meshes)) {
     if (!mesh.faces?.length && !mesh.index?.length) continue;
     try {
       const labels = new Set(state.selectedResidues
         .filter((key) => selectionParts(key)?.chain === chain)
         .map(residueLabelFromKey));
-      state.meshGeometry[chain] = surfaceMeshGeometry(mesh, labels);
-      installSurfaceMesh(chain);
+      if (!state.meshComponents[chain]) {
+        state.meshGeometry[chain] = surfaceMeshGeometry(mesh, labels);
+        installSurfaceMesh(chain);
+      } else if (updateSurfaceMeshSelection(state.meshGeometry[chain], labels)) {
+        state.meshComponents[chain].object.bufferList[0].setAttributes({index: state.meshGeometry[chain].index});
+      }
     } catch (error) {
       $("surface-note").textContent = `Surface mesh for chain ${chain} could not be displayed: ${error.message || error}`;
     }
@@ -1373,7 +1397,7 @@ function installSurfaceMeshes() {
 function updateMeshColors() {
   const key = JSON.stringify([
     state.pairId, state.surfaceScale, state.surfacePadding, state.surfaceMode,
-    state.electrostaticsRevision, state.electrostatics?.version, state.meshSelectionKey,
+    state.electrostaticsRevision, state.electrostatics?.version,
   ]);
   if (state.meshColorKey === key) return;
   for (const [chain, component] of Object.entries(state.meshComponents)) {
@@ -2078,24 +2102,110 @@ function surfaceHitDetail(chain, mesh, vertex) {
   };
 }
 
+function installSurfaceHoverPolicy(stage, isActive) {
+  const mouse = stage.mouseObserver;
+  const behavior = stage.pickingBehavior;
+  const originalHover = behavior._onHover;
+  const policy = {isActive, disposed: false, refreshFrame: null};
+  stage.surfaceHoverPolicy = policy;
+  // Guard before NGL renders the picking scene and reads pixels from the GPU.
+  mouse.signals.hovered.remove(originalHover, behavior);
+  behavior._onHover = function(x, y) {
+    if (policy.disposed || !isActive() || mouse.pressed) return;
+    if (performance.now() - mouse.lastMoved < surfaceHoverDelay) {
+      mouse.hovering = false;
+      return;
+    }
+    originalHover.call(this, x, y);
+  };
+  mouse.signals.hovered.add(behavior._onHover, behavior);
+  const moved = event => {
+    const pointer = event.touches ? event.touches[0] : event;
+    if (pointer) { surfacePointer.x = pointer.clientX; surfacePointer.y = pointer.clientY; }
+  };
+  const refresh = () => refreshSurfaceHover(stage);
+  const events = [["mousemove", moved], ["touchmove", moved], ["mouseup", refresh], ["touchend", refresh]];
+  for (const [event, handler] of events) document.addEventListener(event, handler);
+  stage.viewerControls.signals.changed.add(refresh);
+  policy.dispose = () => {
+    policy.disposed = true;
+    if (policy.refreshFrame !== null) cancelAnimationFrame(policy.refreshFrame);
+    for (const [event, handler] of events) document.removeEventListener(event, handler);
+    stage.viewerControls.signals.changed.remove(refresh);
+    mouse.signals.hovered.remove(behavior._onHover, behavior);
+    behavior._onHover = originalHover;
+  };
+  updateSurfaceHoverPolicy(stage);
+}
+
+function refreshSurfaceHover(stage) {
+  const policy = stage?.surfaceHoverPolicy;
+  if (!policy || policy.disposed || !policy.isActive()) return;
+  const mouse = stage.mouseObserver;
+  // Camera changes fire inside NGL's drag handler. Leave its in-flight pointer
+  // coordinates untouched; the release handler rearms hover afterward.
+  if (mouse.pressed) return;
+  const {x, y} = surfacePointer;
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+  // A tab or mesh may load underneath a stationary pointer. Use the actual
+  // canvas bounds, rather than the previous stage's possibly stale hover flag.
+  const canvas = mouse.domElement;
+  if (document.elementFromPoint(x, y) !== canvas) return;
+  const bounds = canvas.getBoundingClientRect();
+  mouse.position.set(x, y);
+  mouse.canvasPosition.set(x - bounds.left, bounds.bottom - y);
+  mouse.overElement = true;
+  mouse.lastMoved = performance.now();
+  mouse.moving = true;
+  mouse.hovering = false;
+}
+
+function updateSurfaceHoverPolicy(stage) {
+  const policy = stage?.surfaceHoverPolicy;
+  if (!policy || policy.disposed) return;
+  stage.mouseObserver.setParameters({hoverTimeout: policy.isActive() ? surfaceHoverDelay : -1});
+  refreshSurfaceHover(stage);
+}
+
+function refreshSurfaceHoverWhenReady(stage, isCurrent) {
+  const policy = stage?.surfaceHoverPolicy;
+  if (!policy) return;
+  stage.tasks.onZeroOnce(() => {
+    if (policy.disposed || !isCurrent()) return;
+    if (policy.refreshFrame !== null) cancelAnimationFrame(policy.refreshFrame);
+    policy.refreshFrame = requestAnimationFrame(() => {
+      policy.refreshFrame = null;
+      if (!policy.disposed && isCurrent()) refreshSurfaceHover(stage);
+    });
+  });
+}
+
 function showSurfaceTip(hit, event) {
   const tip = $("surface-tip");
   const name = chainLabel(hit.chain);
-  tip.textContent = state.surfaceMode === "electrostatics" && electrostaticsReady()
+  const text = state.surfaceMode === "electrostatics" && electrostaticsReady()
     ? `${name} · ${hit.label} · potential ${hit.potential == null ? "n/a" : `${hit.potential >= 0 ? "+" : ""}${Number(hit.potential).toFixed(3)} kT/e`}`
     : `${name} · ${hit.label} · local H ${fmtH(hit.h)}`;
-  tip.classList.add("on");
-  tip.setAttribute("aria-hidden", "false");
+  if (tip.textContent !== text) tip.textContent = text;
+  if (!tip.classList.contains("on")) {
+    tip.classList.add("on");
+    tip.setAttribute("aria-hidden", "false");
+  }
   if (event) {
     const box = tip.getBoundingClientRect();
-    tip.style.left = `${Math.max(8, Math.min(event.clientX + 14, window.innerWidth - box.width - 8))}px`;
-    tip.style.top = `${Math.max(8, Math.min(event.clientY + 14, window.innerHeight - box.height - 8))}px`;
+    const left = `${Math.max(8, Math.min(event.clientX + 14, window.innerWidth - box.width - 8))}px`;
+    const top = `${Math.max(8, Math.min(event.clientY + 14, window.innerHeight - box.height - 8))}px`;
+    if (tip.style.left !== left) tip.style.left = left;
+    if (tip.style.top !== top) tip.style.top = top;
   }
 }
 
 function hideSurfaceTip() {
-  $("surface-tip").classList.remove("on");
-  $("surface-tip").setAttribute("aria-hidden", "true");
+  const tip = $("surface-tip");
+  if (tip.classList.contains("on")) {
+    tip.classList.remove("on");
+    tip.setAttribute("aria-hidden", "true");
+  }
 }
 
 function setSurfaceViewTab(tab) {
@@ -2114,6 +2224,8 @@ function setSurfaceViewTab(tab) {
   $("chain-toggles").hidden = faces;
   if (!faces) $("surface-view-help").textContent = "Drag to rotate, scroll to zoom, or select a residue in the surface, contact map, or tables.";
   renderFaceRotationControls();
+  updateSurfaceHoverPolicy(state.stage);
+  state.faceView?.panels.forEach(panel => updateSurfaceHoverPolicy(panel.stage));
   if (faces) {
     ensureFaceView();
     requestAnimationFrame(() => fitFaceViews(false));
@@ -2149,6 +2261,7 @@ function setFaceRotationCoupled(coupled) {
 }
 
 function disposeNglStage(stage) {
+  stage.surfaceHoverPolicy?.dispose();
   // This bundled NGL version leaves observation and animation loops running
   // after Stage.dispose(). Stop them and detach input behaviors first.
   if (stage.mouseObserver) {
@@ -2188,7 +2301,6 @@ function cleanupFaceView() {
     for (const panel of face.panels) {
       for (const [event, handler] of panel.handlers) panel.host.removeEventListener(event, handler);
       if (panel.rotationChanged) panel.stage.viewerControls.signals.changed.remove(panel.rotationChanged);
-      if (panel.hoverRefreshFrame) cancelAnimationFrame(panel.hoverRefreshFrame);
       disposeNglStage(panel.stage);
       panel.host.replaceChildren();
     }
@@ -2225,14 +2337,14 @@ function faceTransform(structure, frame) {
 function createFacePanel(face, chain, side) {
   const host = $(`face-view-${side}`);
   const stage = new NGL.Stage(host, {backgroundColor: "#eef2f1", sampleLevel: 0,
-    cameraType: "orthographic", tooltip: false});
+    cameraType: "orthographic", tooltip: false, hoverTimeout: surfaceHoverDelay});
   const panel = {stage, host, chain, side, handlers: [], hoverInside: false,
     lastRotation: stage.viewerControls.rotation.clone(),
-    hoverRefreshFrame: null,
     mesh: null, meshComponent: null, meshRep: null, meshGeometry: null,
     meshSelectionKey: null, highlightKey: null, colorKey: null, lastWidth: null, lastHeight: null};
   // Register immediately so a later build failure can dispose every stage.
   face.panels.push(panel);
+  installSurfaceHoverPolicy(stage, () => state.faceView === face && state.surfaceViewTab === "faces");
   stage.mouseControls.clear();
   stage.mouseControls.add("drag-left", NGL.MouseActions.rotateDrag);
   stage.mouseControls.add("drag-ctrl-right", NGL.MouseActions.zRotateDrag);
@@ -2260,16 +2372,21 @@ function createFacePanel(face, chain, side) {
   host.setAttribute("aria-label", `Binding face of ${chainLabel(chain)} with ${state.faceRotationCoupled ? "mirrored coupled" : "independent"} rotation`);
   $(`face-plane-${side}`).textContent = `${frame.binding_residue_keys.length} binding residues · ${frame.estimated ? "estimated direction" : "fitted binding plane"}`;
   const enter = () => { panel.hoverInside = true; };
-  const leave = () => { panel.hoverInside = false; queueFaceHover(face, null); hideSurfaceTip(); };
+  const leave = () => {
+    panel.hoverInside = false;
+    stage.mouseObserver.overElement = false;
+    queueFaceHover(face, null);
+    hideSurfaceTip();
+  };
   for (const [event, handler] of [["mouseenter", enter], ["mouseleave", leave]]) {
     host.addEventListener(event, handler);
     panel.handlers.push([event, handler]);
   }
   stage.signals.hovered.add(pick => {
-    if (state.faceView !== face || state.surfaceViewTab !== "faces" || !panel.hoverInside) return;
-    queueFaceHover(face, facePickedResidue(panel, pick));
+    if (state.faceView !== face || state.surfaceViewTab !== "faces" || !stage.mouseObserver.overElement) return;
     const vertex = pick?.type === "mesh" && pick.component === panel.meshComponent
       ? surfaceHitVertex(pick, panel.mesh, panel.meshGeometry) : null;
+    queueFaceHover(face, facePickedResidue(panel, pick, vertex));
     if (vertex !== null && pick.canvasPosition) {
       const bounds = host.getBoundingClientRect();
       showSurfaceTip(surfaceHitDetail(panel.chain, panel.mesh, vertex), {
@@ -2402,7 +2519,7 @@ function fitFaceViews(force) {
   }
 }
 
-function facePickedResidue(panel, pick) {
+function facePickedResidue(panel, pick, vertex = undefined) {
   let key = null;
   let atom = pick?.atom;
   if (!atom && pick?.bond) {
@@ -2420,7 +2537,7 @@ function facePickedResidue(panel, pick) {
   if (atom && atom.chainname === panel.chain && aa3to1[atom.resname]) {
     key = `${atom.chainname}:${atom.resno}${atom.inscode || ""}`;
   } else if (pick?.type === "mesh" && pick.component === panel.meshComponent) {
-    const vertex = surfaceHitVertex(pick, panel.mesh, panel.meshGeometry);
+    if (vertex === undefined) vertex = surfaceHitVertex(pick, panel.mesh, panel.meshGeometry);
     if (vertex !== null) key = surfaceResidueKey(panel.chain, panel.mesh.residue[vertex]);
   }
   return state.faceView?.geometry.nearest[panel.chain]?.[key] ? key : null;
@@ -2452,7 +2569,6 @@ function applyFaceHover(face, key) {
   const match = chain && face.geometry.nearest[chain]?.[key];
   face.hoverKeys = match ? [key, match.partner_key] : [];
   updateFaceSurfaces(face);
-  renderFaceHoverReadout(face);
 }
 
 function renderFaceHoverReadout(face) {
@@ -2460,14 +2576,16 @@ function renderFaceHoverReadout(face) {
   const chain = selectionParts(face.hoverKey)?.chain;
   const match = chain && face.geometry.nearest[chain]?.[face.hoverKey];
   if (!match) {
-    readout.textContent = "Hover a residue to highlight its closest partner.";
+    const text = "Hover a residue to highlight its closest partner.";
+    if (readout.textContent !== text) readout.textContent = text;
     return;
   }
   const keys = face.panels.map(panel => face.hoverKeys.find(key => selectionParts(key)?.chain === panel.chain));
   const labels = keys.map(key => `${selectionParts(key).chain}:${residueLabelFromKey(key)}`);
   const missing = face.panels.filter((panel, index) => panel.mesh && !panel.meshLabels.has(residueLabelFromKey(keys[index])));
-  readout.textContent = `${labels.join(" ↔ ")} · ${fmt(match.distance_A, 2)} Å (minimum heavy-atom distance)`
+  const text = `${labels.join(" ↔ ")} · ${fmt(match.distance_A, 2)} Å (minimum heavy-atom distance)`
     + (missing.length ? ` · No surface vertices for ${missing.map(panel => panel.chain).join(", ")}; atoms highlighted.` : "");
+  if (readout.textContent !== text) readout.textContent = text;
 }
 
 function installFaceMesh(panel) {
@@ -2480,24 +2598,28 @@ function installFaceMesh(panel) {
   panel.meshRep = panel.meshComponent.addRepresentation("buffer", {
     opacity: state.surfaceOpacity, side: "double", metalness: 0, roughness: 1,
   });
+  panel.opacity = state.surfaceOpacity;
+  const component = panel.meshComponent;
+  refreshSurfaceHoverWhenReady(panel.stage, () => panel.meshComponent === component);
 }
 
 function updateFaceSurfaces(face) {
   if (!face.ready) return;
   for (const panel of face.panels) {
+    let needsRender = false;
     const keys = [...new Set([...state.selectedResidues, ...face.hoverKeys])]
       .filter(key => selectionParts(key)?.chain === panel.chain).sort();
     const highlightKey = JSON.stringify(keys);
     if (panel.highlightKey !== highlightKey) {
       panel.highlightRep.setSelection(keys.map(key => `(${selectionString(key)})`).join(" or ") || "none");
       panel.highlightKey = highlightKey;
+      needsRender = true;
     }
     const mesh = state.surface?.status === "complete" ? state.surface.meshes?.[panel.chain] : null;
     const labels = new Set(keys.map(residueLabelFromKey).filter(Boolean));
     const selectionKey = JSON.stringify([...labels].sort());
-    const changed = panel.mesh !== mesh || panel.meshSelectionKey !== selectionKey;
-    if (changed) {
-      if (panel.mesh !== mesh) panel.meshLabels = new Set(mesh?.residue || []);
+    if (panel.mesh !== mesh) {
+      panel.meshLabels = new Set(mesh?.residue || []);
       if (panel.meshComponent) panel.stage.removeComponent(panel.meshComponent);
       panel.meshComponent = null;
       panel.meshRep = null;
@@ -2505,34 +2627,33 @@ function updateFaceSurfaces(face) {
       panel.mesh = mesh;
       panel.meshSelectionKey = selectionKey;
       panel.colorKey = null;
+      needsRender = true;
       if (mesh?.index?.length) {
         panel.meshGeometry = surfaceMeshGeometry(mesh, labels);
         installFaceMesh(panel);
-        const component = panel.meshComponent;
-        panel.stage.tasks.onZeroOnce(() => {
-          // NGL picks once after mouse movement. A pick during a mesh rebuild
-          // can miss the surface, so refresh it once the replacement is ready.
-          if (state.faceView !== face || panel.meshComponent !== component) return;
-          if (panel.hoverRefreshFrame) cancelAnimationFrame(panel.hoverRefreshFrame);
-          panel.hoverRefreshFrame = requestAnimationFrame(() => {
-            panel.hoverRefreshFrame = null;
-            if (state.faceView === face && state.surfaceViewTab === "faces"
-              && panel.meshComponent === component && panel.hoverInside
-              && panel.stage.mouseObserver.overElement) panel.stage.mouseObserver.hovering = false;
-          });
-        });
       }
+    } else if (panel.meshComponent && panel.meshSelectionKey !== selectionKey) {
+      if (updateSurfaceMeshSelection(panel.meshGeometry, labels)) {
+        panel.meshComponent.object.bufferList[0].setAttributes({index: panel.meshGeometry.index});
+        needsRender = true;
+      }
+      panel.meshSelectionKey = selectionKey;
     }
     const colorKey = JSON.stringify([
       state.surfaceScale, state.surfacePadding, state.surfaceMode,
-      state.electrostaticsRevision, state.electrostatics?.version, selectionKey,
+      state.electrostaticsRevision, state.electrostatics?.version,
     ]);
     if (panel.meshComponent && panel.colorKey !== colorKey) {
       panel.meshComponent.object.bufferList[0].setAttributes({color: meshColors(panel.chain, panel.meshGeometry)});
       panel.colorKey = colorKey;
+      needsRender = true;
     }
-    panel.meshRep?.setParameters({opacity: state.surfaceOpacity});
-    panel.stage.viewer.requestRender();
+    if (panel.meshRep && panel.opacity !== state.surfaceOpacity) {
+      panel.meshRep.setParameters({opacity: state.surfaceOpacity});
+      panel.opacity = state.surfaceOpacity;
+      needsRender = true;
+    }
+    if (needsRender) panel.stage.viewer.requestRender();
   }
   const meshCount = face.panels.filter(panel => panel.meshComponent).length;
   const rotationMode = state.faceRotationCoupled ? "Mirrored rotation" : "Independent rotation";
@@ -2609,6 +2730,7 @@ function initSurfaceEvents() {
   $("surface-separation").addEventListener("input", (event) => {
     state.surfaceSeparation = Number(event.target.value);
     renderSurface();
+    refreshSurfaceHover(state.stage);
   });
   $("surface-resolution").addEventListener("change", (event) => {
     state.surfaceScale = event.target.value;

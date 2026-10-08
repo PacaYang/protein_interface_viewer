@@ -25,7 +25,7 @@ const context = {state: {
   electrostatics:{status:'complete', curvature_job_id:input.curvatureId || 'surface',
     report:{color_limit_kT_e:1}, meshes:{A:{potential_kT_e:[-1,0,1,1]}}},
   result:{pairs:[{id:'AB',chain_a:'A',chain_b:'B'}]},
-  meshGeometry:{A:{vertexMap:[0,1,2,3,2],highlightedVertexStart:4}},
+  meshGeometry:{A:{vertexMap:[0,1,2,3,0,1,2,3],highlightedVertexStart:4}},
 }};
 vm.createContext(context);
 vm.runInContext(source.slice(source.indexOf('const curvatureColors ='), source.indexOf('const cartoonColors =')), context);
@@ -52,7 +52,7 @@ def test_signs_neutral_padding_and_yellow_selection(mode, negative, neutral, pos
     result = colors(mode)
     assert result["ready"]
     expected = [component / 255 for rgb in [negative, neutral, positive, [157, 164, 172]] for component in rgb]
-    expected += [1, 1, 0]
+    expected += [1, 1, 0] * 4
     assert result["colors"] == pytest.approx(expected)
 
 
