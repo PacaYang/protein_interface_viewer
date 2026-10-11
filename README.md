@@ -75,15 +75,30 @@ choosing a target chain, partner chain, residue anchor or residue list, and
 The workspace mirrors the standalone `contact_map.html` view while keeping the
 analysis data local to the browser app:
 
-- A collapsible side menu holds `Upload coordinates`, `Retrieve from RCSB`,
-  and `Local history`. History entries can be deleted individually or with
-  `Clear all`. Analyses with queued or running jobs are kept until they finish.
+- The page has two columns. The 3D viewer stays fixed on the left while the
+  outputs scroll on the right. Below 1100 px the viewer stacks above the outputs.
+  The viewer toolbar switches between Interactive 3D and side-by-side binding
+  faces, and between curvature and electrostatics coloring. **Settings** opens a
+  dropdown with the interface (chain-pair) list, surface display controls,
+  residue selection, and binding summaries. Escape or a click outside closes it.
+- The outputs column starts with a collapsible structure bar for PDB fetch,
+  file upload, and recent analyses. Its collapsed state is remembered. History
+  entries can be deleted individually or with `Clear all`. Analyses with queued
+  or running jobs are kept until they finish.
+- The outputs appear in this order: the contact map, a tabbed table card
+  (residue interface, closest contact pairs, contact map pairs, surface
+  curvature), and pocket analysis. Select a column heading to sort a table;
+  select it again to reverse the order. Missing values stay last.
+- The contact map scales its cells to fit the column width without horizontal
+  scrolling. Small cells hide distance values, which remain in the tooltips.
+  **Open in new window** shows the same map in a resizable window. Selections
+  made there update the main page, and the window follows the cutoff,
+  contact-type, and interface choices.
 - Chains are labeled with the molecule name declared in the file (PDB
   `COMPND MOLECULE` or mmCIF `_entity.pdbx_description`) plus the chain ID.
   Analyses saved before this change are relabeled when they are opened.
-- `INTERFACES` is a collapsible chain-pair list on the left. Selecting a pair
-  opens its `Residue interface` and `Closest contact pairs` tabs in the main
-  pane.
+- The interface list in **Settings** shows each chain pair. Selecting a pair
+  updates the contact map, tables, and pocket form.
 - The contact map retains every residue pair with a heavy-atom contact through
   6 Å. Its distance cutoff, interaction type (all, tight, H-bond, salt, or
   like-charge), numeric cell labels, and ΔSASA lane can be changed without
@@ -103,7 +118,7 @@ analysis data local to the browser app:
   convex regions are green; negative potential is blue and positive potential
   is red, with neutral values near white. Electrostatics is reported in `kT/e`.
   The toggle is shared by Interactive 3D and both
-  Binding faces panes. Surface opacity,
+  Binding faces panes. Surface opacity (0–100%),
   distance padding from the selected contact face (0–8 Å), separation of the
   opposing chains, and per-chain visibility are view-only controls.
   Selected residues appear as yellow surface patches: every triangle touching
@@ -158,8 +173,8 @@ analysis data local to the browser app:
   This view also works with saved analyses, using
   `GET /api/analyses/{analysis_id}/pairs/{pair_id}/face-view` without rerunning
   analysis or changing stored results.
-- A collapsible **Highlight residues** panel sits beside the surface viewer
-  (below it on mobile). Choose a default chain and enter numbers, insertion codes,
+- A collapsible **Select residues** section in **Settings** highlights typed
+  residues. Choose a default chain and enter numbers, insertion codes,
   or inclusive ranges, such as `A:45-52, 60, 63A, B:101`. Commas and spaces
   separate entries; a chain prefix applies until the next prefix. Ranges follow
   actual residues in the coordinate file, including insertion codes and sequence

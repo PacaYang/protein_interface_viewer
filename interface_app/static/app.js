@@ -103,7 +103,6 @@ function fmt(value, digits = 1) {
 }
 
 function showError(error) {
-  closeDrawer();
   $("status-message").hidden = false;
   $("status-message").textContent = error.message || String(error);
 }
@@ -221,8 +220,7 @@ async function refreshHistory() {
 function closeWorkspace() {
   resetState();
   state.analysisId = null;
-  $("workspace").hidden = true;
-  $("empty-workspace").hidden = false;
+  setWorkspaceOpen(false);
 }
 
 async function deleteAnalysis(id) {
@@ -258,62 +256,61 @@ async function clearHistory() {
   refreshHistory();
 }
 
-// Above 1100px the menu sits beside the workspace and collapses to a rail.
-// At or below it, the menu is an off-canvas drawer over the workspace.
-const overlayQuery = window.matchMedia("(max-width: 1100px)");
-let drawerReturnFocus = null;
-
+// The structure menu is a bar at the top of the outputs column. It collapses
+// to a single line; the choice persists across reloads.
 function setDrawerCollapsed(collapsed) {
   const button = $("drawer-toggle");
+  const label = collapsed ? "Expand structure menu" : "Collapse structure menu";
   button.setAttribute("aria-expanded", String(!collapsed));
-  button.textContent = collapsed ? "›" : "‹";
-  button.title = collapsed ? "Expand menu" : "Collapse menu";
-  button.setAttribute("aria-label", button.title);
+  button.textContent = collapsed ? "▾" : "▴";
+  button.title = label;
+  button.setAttribute("aria-label", label);
+  $("drawer-body").hidden = collapsed;
   $("app-layout").classList.toggle("drawer-collapsed", collapsed);
   try { localStorage.setItem("drawerCollapsed", collapsed ? "1" : "0"); } catch (_) {}
 }
 
-function syncDrawerMode() {
-  const button = $("drawer-toggle");
-  const drawer = $("source-drawer");
-  if (overlayQuery.matches) {
-    const open = document.body.classList.contains("drawer-open-state");
-    button.textContent = "‹";
-    button.title = "Close menu";
-    button.setAttribute("aria-label", "Close menu");
-    button.setAttribute("aria-expanded", String(open));
-    drawer.setAttribute("role", "dialog");
-    drawer.toggleAttribute("aria-modal", open);
-  } else {
-    closeDrawer(false);
-    drawer.removeAttribute("role");
-    drawer.removeAttribute("aria-modal");
-    setDrawerCollapsed($("app-layout").classList.contains("drawer-collapsed"));
-  }
-}
-
 function openDrawer() {
-  if (!overlayQuery.matches) {
-    setDrawerCollapsed(false);
-    return;
-  }
-  drawerReturnFocus = document.activeElement;
-  document.body.classList.add("drawer-open-state");
-  $("drawer-backdrop").hidden = false;
-  $("main-column").inert = true;
-  syncDrawerMode();
-  $("pdb-id").focus();
+  setDrawerCollapsed(false);
+  $("source-drawer").scrollIntoView({block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"});
+  $("pdb-id").focus({preventScroll: true});
 }
 
-function closeDrawer(restoreFocus = true) {
-  if (!document.body.classList.contains("drawer-open-state")) return;
-  const hadFocus = $("source-drawer").contains(document.activeElement);
-  document.body.classList.remove("drawer-open-state");
-  $("drawer-backdrop").hidden = true;
-  $("main-column").inert = false;
-  if (overlayQuery.matches) syncDrawerMode();
-  if (restoreFocus && hadFocus && drawerReturnFocus?.isConnected) drawerReturnFocus.focus();
-  drawerReturnFocus = null;
+function closeDrawer() {
+  setDrawerCollapsed(true);
+}
+
+function setWorkspaceOpen(open) {
+  $("workspace").hidden = !open;
+  $("empty-workspace").hidden = open;
+  $("app-layout").classList.toggle("no-analysis", !open);
+  if (!open) setSettingsOpen(false);
+}
+
+// Settings dropdown over the viewer. It stays open while controls are used and
+// closes on Escape, the toggle, or a click outside the viewer card.
+function setSettingsOpen(open, focus = false) {
+  const button = $("settings-toggle");
+  const popover = $("settings-popover");
+  if (popover.hidden === !open) return;
+  popover.hidden = !open;
+  button.setAttribute("aria-expanded", String(open));
+  if (open && focus) popover.querySelector("button, input, select, textarea, [tabindex='0']")?.focus();
+}
+
+function initSettingsMenu() {
+  $("settings-toggle").addEventListener("click", () => setSettingsOpen($("settings-popover").hidden, true));
+  document.addEventListener("pointerdown", (event) => {
+    if ($("settings-popover").hidden) return;
+    if (event.target.closest("#settings-popover, #settings-toggle, #surface-panel")) return;
+    setSettingsOpen(false);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || $("settings-popover").hidden) return;
+    const inside = $("settings-popover").contains(document.activeElement);
+    setSettingsOpen(false);
+    if (inside) $("settings-toggle").focus();
+  });
 }
 
 function setChosenFile(file) {
@@ -468,6 +465,7 @@ function resetState() {
   $("pocket-job-status").hidden = true;
   $("pocket-job-status").textContent = "";
   $("pair-workspace").hidden = true;
+  $("tables-panel").hidden = true;
   $("pocket-panel").hidden = true;
   $("surface-status").textContent = "waiting";
   $("surface-status").className = "status-pill";
@@ -476,9 +474,7 @@ function resetState() {
 async function openAnalysis(id) {
   resetState();
   state.analysisId = id;
-  $("workspace").hidden = false;
-  $("empty-workspace").hidden = true;
-  closeDrawer(false);
+  setWorkspaceOpen(true);
   $("history").querySelectorAll(".history-row").forEach((row) => {
     row.classList.toggle("active", row.dataset.id === id);
   });
@@ -869,6 +865,7 @@ function renderInterfaces() {
   });
   if (!pairs.length) {
     $("pair-workspace").hidden = true;
+    $("tables-panel").hidden = true;
     $("pocket-panel").hidden = true;
     return;
   }
@@ -895,6 +892,7 @@ function selectPair(id) {
   $("pocket-job-status").hidden = true;
   $("pocket-job-status").textContent = "";
   $("pair-workspace").hidden = false;
+  $("tables-panel").hidden = false;
   $("pocket-panel").hidden = false;
   $("pair-title").textContent = `${chainLabel(pair.chain_a)} × ${chainLabel(pair.chain_b)}`;
   $("pair-summary").textContent = `${pair.chain_a} · ${pair.chain_b}`;
@@ -952,13 +950,103 @@ function bindSelectionRow(row, keys) {
 }
 
 function renderTabs() {
-  const residueActive = state.activeTab === "residue";
-  $("residue-tab").classList.toggle("active", residueActive);
-  $("residue-tab").setAttribute("aria-selected", String(residueActive));
-  $("contact-tab").classList.toggle("active", !residueActive);
-  $("contact-tab").setAttribute("aria-selected", String(!residueActive));
-  $("residue-panel").hidden = !residueActive;
-  $("contact-panel").hidden = residueActive;
+  document.querySelectorAll("#tables-panel [role='tab']").forEach((button) => {
+    const active = button.dataset.tab === state.activeTab;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
+    button.tabIndex = active ? 0 : -1;
+    $(button.getAttribute("aria-controls")).hidden = !active;
+  });
+}
+
+// Arrow keys move between tabs, following the WAI-ARIA tabs pattern.
+function initTableTabs() {
+  const tabs = [...document.querySelectorAll("#tables-panel [role='tab']")];
+  tabs.forEach((button, index) => {
+    button.addEventListener("click", () => { state.activeTab = button.dataset.tab; renderTabs(); });
+    button.addEventListener("keydown", (event) => {
+      const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+      if (!step) return;
+      event.preventDefault();
+      const next = tabs[(index + step + tabs.length) % tabs.length];
+      next.focus();
+      next.click();
+    });
+  });
+}
+
+// Sortable tables: each header becomes a button. Sorting reorders the existing
+// rows in place, so selection bindings survive. The chosen column is kept per
+// table and re-applied whenever the table body is rendered again.
+const tableSorts = new Map();
+const sortCollator = new Intl.Collator(undefined, {numeric: true, sensitivity: "base"});
+
+function sortValue(cell) {
+  const text = (cell?.textContent || "").trim();
+  if (!text || text === "—" || text === "n/a") return null;
+  const number = text.replace(/[−–]/g, "-").match(/^[-+]?\d*\.?\d+(?:e[-+]?\d+)?/i);
+  // Pure numbers (with units such as Å, Å², %) sort numerically; residue
+  // labels like "A:63A" or "B:101" fall through to a natural-order string sort.
+  if (number && /^[-+]?\d*\.?\d+(?:e[-+]?\d+)?\s*(Å²|Å⁻¹|Å|%)?$/i.test(text.replace(/[−–]/g, "-"))) return Number(number[0]);
+  return text;
+}
+
+function compareSortValues(a, b) {
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  if (typeof a === "number" && typeof b === "number") return a - b;
+  return sortCollator.compare(String(a), String(b));
+}
+
+function applyTableSort(tbody) {
+  const sort = tableSorts.get(tbody.id);
+  const table = tbody.closest("table");
+  table.querySelectorAll("thead th").forEach((th, index) => {
+    if (sort && index === sort.column) th.setAttribute("aria-sort", sort.dir > 0 ? "ascending" : "descending");
+    else th.removeAttribute("aria-sort");
+    const arrow = th.querySelector(".sort-arrow");
+    if (arrow) arrow.textContent = sort && index === sort.column ? (sort.dir > 0 ? "▲" : "▼") : "↕";
+  });
+  if (!sort) return;
+  const rows = [...tbody.rows];
+  if (rows.length < 2 || rows.some((row) => row.cells.length === 1 && row.cells[0].colSpan > 1)) return;
+  const keyed = rows.map((row, index) => ({row, index, value: sortValue(row.cells[sort.column])}));
+  keyed.sort((a, b) => {
+    const order = compareSortValues(a.value, b.value);
+    // Missing values stay last in either direction; ties keep render order.
+    if (a.value === null || b.value === null) return order || a.index - b.index;
+    return order * sort.dir || a.index - b.index;
+  });
+  tbody.append(...keyed.map((item) => item.row));
+}
+
+function makeTableSortable(table) {
+  const tbody = table.tBodies[0];
+  table.querySelectorAll("thead th").forEach((th, column) => {
+    const label = th.textContent.trim();
+    th.classList.add("sortable-th");
+    th.innerHTML = `<button class="sort-button" type="button">${esc(label)}<span class="sort-arrow" aria-hidden="true">↕</span></button>`;
+    th.querySelector("button").addEventListener("click", () => {
+      const current = tableSorts.get(tbody.id);
+      // First click on a column: text ascending, numbers descending (largest first).
+      const firstValue = [...tbody.rows].map((row) => sortValue(row.cells[column])).find((value) => value !== null);
+      const dir = current?.column === column ? -current.dir : (typeof firstValue === "number" ? -1 : 1);
+      tableSorts.set(tbody.id, {column, dir});
+      applyTableSort(tbody);
+    });
+  });
+  // Re-sort after every render of this tbody (innerHTML or appendChild).
+  const observer = new MutationObserver(() => {
+    observer.disconnect();
+    applyTableSort(tbody);
+    observer.observe(tbody, {childList: true});
+  });
+  observer.observe(tbody, {childList: true});
+}
+
+function initSortableTables() {
+  document.querySelectorAll("table.sortable").forEach(makeTableSortable);
 }
 
 function chainResidues(chain) {
@@ -1016,7 +1104,7 @@ function renderHighlightChains(defaultChain) {
 }
 
 function setHighlightPanelCollapsed(collapsed) {
-  $("surface-stage").classList.toggle("side-collapsed", collapsed);
+  $("residue-highlight-panel").classList.toggle("side-collapsed", collapsed);
   $("residue-highlight-body").hidden = collapsed;
   const button = $("residue-highlight-toggle");
   const label = collapsed ? "Expand residue highlights" : "Collapse residue highlights";
@@ -1025,7 +1113,6 @@ function setHighlightPanelCollapsed(collapsed) {
   button.title = label;
   button.textContent = collapsed ? "+" : "−";
   try { localStorage.setItem("highlightPanelCollapsed", collapsed ? "1" : "0"); } catch (_) {}
-  requestAnimationFrame(() => state.stage?.handleResize());
 }
 
 function renderHighlightFeedback() {
@@ -1114,13 +1201,15 @@ function renderSelectionState() {
     const keys = (row.dataset.keys || row.dataset.key || "").split("|");
     row.classList.toggle("selected", keys.some((key) => state.selectedResidues.includes(key)));
   });
-  document.querySelectorAll("[data-residue-key]").forEach((element) => {
-    element.classList.toggle("selected", state.selectedResidues.includes(element.dataset.residueKey));
-  });
-  document.querySelectorAll("[data-cell-key]").forEach((element) => {
-    const keys = (element.dataset.cellKey || "").split("|");
-    element.classList.toggle("selected", keys.some((key) => state.selectedResidues.includes(key)));
-  });
+  for (const doc of selectionDocuments()) {
+    doc.querySelectorAll("[data-residue-key]").forEach((element) => {
+      element.classList.toggle("selected", state.selectedResidues.includes(element.dataset.residueKey));
+    });
+    doc.querySelectorAll("[data-cell-key]").forEach((element) => {
+      const keys = (element.dataset.cellKey || "").split("|");
+      element.classList.toggle("selected", keys.some((key) => state.selectedResidues.includes(key)));
+    });
+  }
 }
 
 function selectionParts(key) {
@@ -1661,7 +1750,8 @@ function renderDistanceLegend() {
 }
 
 function addGridElement(grid, className, text, column, row, attrs = {}) {
-  const element = document.createElement("div");
+  // ownerDocument, so the same code builds the map in the pop-out window.
+  const element = grid.ownerDocument.createElement("div");
   element.className = className;
   if (text != null) element.textContent = text;
   element.style.gridColumn = String(column);
@@ -1671,19 +1761,77 @@ function addGridElement(grid, className, text, column, row, attrs = {}) {
   return element;
 }
 
+// Track kinds per axis: "cell" for a residue, "gap" for a sequence gap. Pixel
+// sizes are assigned later by fitContactGrid so the map fits its container.
 function contactAxisLayout(axis, indices) {
   const tracks = [];
   const gaps = [];
   let track = 4;
   const positions = indices.map((index, position) => {
     if (position > 0 && axis[index].number - axis[indices[position - 1]].number > 1) {
-      tracks.push("8px");
+      tracks.push("gap");
       gaps.push(track++);
     }
-    tracks.push("30px");
+    tracks.push("cell");
     return track++;
   });
   return {tracks, positions, gaps};
+}
+
+// Contact-map sizing. Cells shrink to fit the available width (no horizontal
+// scroll) between these bounds; below compactCell, values are hidden.
+const mapCellMax = 30;
+const mapCellMin = 6;
+const mapCompactCell = 22;
+
+function mapTrackSizes(cell, layout, sasa, maxLabelChars) {
+  const gap = Math.max(3, Math.round(cell * 0.27));
+  const font = Math.max(7, Math.min(10, Math.round(cell * 0.4)));
+  const label = Math.ceil(maxLabelChars * font * 0.68 + 8);
+  const lane = Math.max(8, Math.round(cell * 0.93));
+  const sasaTrack = sasa ? Math.max(4, Math.round(cell * 0.4)) : 0;
+  const grid = cell < 14 ? 1 : 2;
+  const tracks = (list) => list.map((kind) => `${kind === "gap" ? gap : cell}px`);
+  return {cell, gap, font, label, lane, sasaTrack, grid, columns: tracks(layout.columns.tracks), rows: tracks(layout.rows.tracks)};
+}
+
+function fitContactGrid(grid) {
+  const layout = grid._mapLayout;
+  if (!layout || !grid.isConnected) return;
+  const view = grid.ownerDocument.defaultView;
+  const style = view.getComputedStyle(grid);
+  const available = grid.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+  if (available <= 0) return;
+  const widthAt = (cell) => {
+    const s = mapTrackSizes(cell, layout, layout.sasa, layout.maxLabelChars);
+    const trackCount = 3 + s.columns.length;
+    return s.label + s.lane + s.sasaTrack + s.columns.reduce((sum, value) => sum + parseFloat(value), 0) + s.grid * (trackCount - 1);
+  };
+  // Largest integer cell size that fits; widthAt is monotonic in cell size.
+  let cell = mapCellMax;
+  while (cell > mapCellMin && widthAt(cell) > available) cell -= 1;
+  const s = mapTrackSizes(cell, layout, layout.sasa, layout.maxLabelChars);
+  const colLabelHeight = Math.ceil(layout.maxLabelChars * s.font * 0.68 + 10);
+  grid.style.setProperty("--cell", `${cell}px`);
+  grid.style.setProperty("--label-font", `${s.font}px`);
+  grid.style.gap = `${s.grid}px`;
+  grid.style.gridTemplateColumns = `${s.label}px ${s.lane}px ${s.sasaTrack}px ${s.columns.join(" ") || `${cell}px`}`;
+  grid.style.gridTemplateRows = `${colLabelHeight}px ${s.lane}px ${s.sasaTrack}px ${s.rows.join(" ") || `${cell}px`}`;
+  grid.classList.toggle("compact", cell < mapCompactCell || !layout.values);
+  // Only if even the minimum cell size cannot fit (very large maps) allow scrolling.
+  grid.style.overflowX = widthAt(cell) > available + 1 ? "auto" : "hidden";
+}
+
+function observeContactGrid(grid) {
+  if (grid._mapObserver) return;
+  const View = grid.ownerDocument.defaultView;
+  let lastWidth = 0;
+  grid._mapObserver = new View.ResizeObserver(() => {
+    if (grid.clientWidth === lastWidth) return;
+    lastWidth = grid.clientWidth;
+    fitContactGrid(grid);
+  });
+  grid._mapObserver.observe(grid);
 }
 
 function decorateMapLabel(label, residue, column) {
@@ -1708,28 +1856,41 @@ function showContactTip(element, cell, data) {
   if (!cell) return;
   const row = data.rows[cell.row];
   const col = data.cols[cell.col];
-  const tip = $("contact-tip");
+  const doc = element.ownerDocument;
+  const view = doc.defaultView;
+  const tip = doc.getElementById("contact-tip");
+  if (!tip) return;
   tip.innerHTML = `<strong>${esc(residueDisplay(row))} × ${esc(residueDisplay(col))}</strong><dl><dt>Minimum distance</dt><dd>${fmt(cell.min_dist_A, 2)} Å</dd><dt>Atom contacts</dt><dd>${cell.n_contacts}</dd><dt>Tight contacts</dt><dd>${cell.n_tight}</dd>${cell.hbond_like.length ? `<dt>H-bonds</dt><dd>${cell.hbond_like.length}</dd>` : ""}${cell.salt_bridges.length ? `<dt>Salt bridges</dt><dd>${cell.salt_bridges.length}</dd>` : ""}${cell.like_charges?.length ? `<dt>Like charge</dt><dd>${cell.like_charges.length}</dd>` : ""}</dl>`;
   tip.classList.add("on");
   tip.setAttribute("aria-hidden", "false");
   const bounds = element.getBoundingClientRect();
   const box = tip.getBoundingClientRect();
-  const left = bounds.right + 12 + box.width > window.innerWidth ? bounds.left - box.width - 12 : bounds.right + 12;
-  const top = Math.min(bounds.top, window.innerHeight - box.height - 8);
+  const left = bounds.right + 12 + box.width > view.innerWidth ? bounds.left - box.width - 12 : bounds.right + 12;
+  const top = Math.min(bounds.top, view.innerHeight - box.height - 8);
   tip.style.left = `${Math.max(8, left)}px`;
   tip.style.top = `${Math.max(8, top)}px`;
 }
 
-function hideContactTip() {
-  $("contact-tip").classList.remove("on");
-  $("contact-tip").setAttribute("aria-hidden", "true");
+function hideContactTip(event) {
+  const doc = event?.target?.ownerDocument || document;
+  for (const tip of [doc.getElementById("contact-tip"), $("contact-tip")]) {
+    tip?.classList.remove("on");
+    tip?.setAttribute("aria-hidden", "true");
+  }
+}
+
+// Documents that show linked selections: this page plus the open pop-out map.
+function selectionDocuments() {
+  const popout = state.mapPopout;
+  return popout && !popout.closed ? [document, popout.document] : [document];
 }
 
 function renderContactMap() {
   const pair = state.result?.pairs?.find((item) => item.id === state.pairId);
   const data = pair?.contact_map;
-  const grid = $("contact-grid");
-  grid.textContent = "";
+  const slice = data ? contactMapSlice(data) : null;
+  drawContactGrid($("contact-grid"), data, slice);
+  renderContactPopout();
   if (!data) {
     $("contact-map-count").textContent = "No contact map data";
     $("contact-col-axis").textContent = "";
@@ -1738,17 +1899,25 @@ function renderContactMap() {
     $("contact-map-note").textContent = "";
     return;
   }
-  const slice = contactMapSlice(data);
-  const rowCount = slice.rows.length;
-  const colCount = slice.cols.length;
-  $("contact-map-count").textContent = `${slice.cells.length} pairs · ${rowCount} × ${colCount} residues`;
-  const columns = contactAxisLayout(data.cols, slice.cols);
-  const rows = contactAxisLayout(data.rows, slice.rows);
-  grid.style.gridTemplateColumns = `minmax(44px, max-content) 28px ${state.contact.sasa ? "12px" : "0px"} ${columns.tracks.join(" ") || "30px"}`;
-  grid.style.gridTemplateRows = `82px 28px ${state.contact.sasa ? "12px" : "0px"} ${rows.tracks.join(" ") || "30px"}`;
-  grid.setAttribute("aria-label", `${chainLabel(data.row_chain)} by ${chainLabel(data.col_chain)} residue contact map`);
+  $("contact-map-count").textContent = `${slice.cells.length} pairs · ${slice.rows.length} × ${slice.cols.length} residues`;
   $("contact-col-axis").textContent = `${chainLabel(data.col_chain)} · columns →`;
   $("contact-row-axis").textContent = `${chainLabel(data.row_chain)} · rows ↓`;
+  renderDistanceLegend();
+  $("contact-map-note").textContent = `Cells retain all atom contacts through ${data.cutoff_A.toFixed(1)} Å. Wider gaps mark sequence gaps. The reported interface cutoff is ${data.reported_cutoff_A.toFixed(1)} Å; hollow ΔSASA lanes mark residues outside that report. Salt and like-charge contacts use charged functional-group atoms.`;
+  renderContactMapTable(slice, data);
+  renderSelectionState();
+}
+
+function drawContactGrid(grid, data, slice) {
+  grid.textContent = "";
+  grid._mapLayout = null;
+  if (!data) return;
+  const columns = contactAxisLayout(data.cols, slice.cols);
+  const rows = contactAxisLayout(data.rows, slice.rows);
+  const labels = [...slice.cols.map((index) => data.cols[index].label), ...slice.rows.map((index) => data.rows[index].label)];
+  grid._mapLayout = {columns, rows, sasa: state.contact.sasa, values: state.contact.vals,
+    maxLabelChars: Math.max(3, ...labels.map((label) => String(label).length))};
+  grid.setAttribute("aria-label", `${chainLabel(data.row_chain)} by ${chainLabel(data.col_chain)} residue contact map`);
   for (const row of rows.gaps) {
     const line = addGridElement(grid, "map-gap-line horizontal", "", 4, row, {"aria-hidden": "true"});
     line.style.gridColumn = `4 / span ${Math.max(1, columns.tracks.length)}`;
@@ -1785,7 +1954,7 @@ function renderContactMap() {
         element.dataset.cell = `${cell.row}:${cell.col}`;
         element.setAttribute("aria-label", `${residueDisplay(residue)} to ${residueDisplay(data.cols[columnIndex])}: ${fmt(cell.min_dist_A, 2)} angstrom`);
         if (cell.salt_bridges.length || cell.like_charges?.length || cell.hbond_like.length) {
-          const badge = document.createElement("span");
+          const badge = grid.ownerDocument.createElement("span");
           badge.className = `map-badge ${cell.salt_bridges.length ? "salt" : cell.like_charges?.length ? "like" : "hbond"}`;
           badge.textContent = cell.salt_bridges.length ? "+" : cell.like_charges?.length ? "×" : "H";
           element.appendChild(badge);
@@ -1804,9 +1973,55 @@ function renderContactMap() {
       }
     });
   });
-  renderDistanceLegend();
-  $("contact-map-note").textContent = `Cells retain all atom contacts through ${data.cutoff_A.toFixed(1)} Å. Wider gaps mark sequence gaps. The reported interface cutoff is ${data.reported_cutoff_A.toFixed(1)} Å; hollow ΔSASA lanes mark residues outside that report. Salt and like-charge contacts use charged functional-group atoms.`;
-  renderContactMapTable(slice, data);
+  fitContactGrid(grid);
+  observeContactGrid(grid);
+}
+
+// Pop-out contact map: a same-origin window that reuses this page's styles and
+// drawing code. Clicks there select residues here (the viewer and tables
+// update), and it redraws whenever the pair or map filters change.
+function openContactPopout() {
+  if (state.mapPopout && !state.mapPopout.closed) {
+    state.mapPopout.focus();
+    renderContactPopout();
+    return;
+  }
+  const popout = window.open("", "contact-map", "popup,width=1200,height=900");
+  if (!popout) {
+    showError(new Error("The contact map window was blocked. Allow pop-ups for this page, then select Open in new window again."));
+    return;
+  }
+  const stylesheet = new URL("/static/style.css", location.href).href;
+  popout.document.open();
+  popout.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Contact map</title><link rel="stylesheet" href="${esc(stylesheet)}"></head>
+<body class="popout-body"><div class="popout-head"><h1 id="popout-title">Contact map</h1><span id="popout-count" class="muted"></span></div>
+<p id="popout-col-axis" class="map-axis-title"></p><div id="contact-grid" class="contact-grid" role="grid"></div><p id="popout-row-axis" class="map-axis-title"></p>
+<p class="note">Select a cell or residue label to highlight it in the main window. Cutoff and contact type follow the main window's controls.</p>
+<div id="contact-tip" class="contact-tip" role="tooltip" aria-hidden="true"></div></body></html>`);
+  popout.document.close();
+  state.mapPopout = popout;
+  popout.addEventListener("pagehide", () => { if (state.mapPopout === popout) state.mapPopout = null; });
+  // Wait for the stylesheet so the first fit measures real padding.
+  const link = popout.document.querySelector("link");
+  const draw = () => renderContactPopout();
+  if (link.sheet) draw(); else link.addEventListener("load", draw, {once: true});
+}
+
+function renderContactPopout() {
+  const popout = state.mapPopout;
+  if (!popout || popout.closed) return;
+  const doc = popout.document;
+  const grid = doc.getElementById("contact-grid");
+  if (!grid) return;
+  const pair = state.result?.pairs?.find((item) => item.id === state.pairId);
+  const data = pair?.contact_map;
+  const slice = data ? contactMapSlice(data) : null;
+  drawContactGrid(grid, data, slice);
+  doc.getElementById("popout-title").textContent = pair ? `${chainLabel(pair.chain_a)} × ${chainLabel(pair.chain_b)}` : "No interface selected";
+  doc.title = pair ? `Contact map · ${state.detail?.name || ""} ${pair.chain_a}×${pair.chain_b}` : "Contact map";
+  doc.getElementById("popout-count").textContent = slice ? `${slice.cells.length} pairs · ${slice.rows.length} × ${slice.cols.length} residues` : "";
+  doc.getElementById("popout-col-axis").textContent = data ? `${chainLabel(data.col_chain)} · columns →` : "";
+  doc.getElementById("popout-row-axis").textContent = data ? `${chainLabel(data.row_chain)} · rows ↓` : "";
   renderSelectionState();
 }
 
@@ -2770,17 +2985,14 @@ $("pdb-id").addEventListener("blur", inspectPdb);
 $("refresh-history").addEventListener("click", refreshHistory);
 $("clear-history").addEventListener("click", clearHistory);
 $("drawer-toggle").addEventListener("click", () => {
-  if (overlayQuery.matches) closeDrawer();
-  else setDrawerCollapsed(!$("app-layout").classList.contains("drawer-collapsed"));
+  setDrawerCollapsed(!$("app-layout").classList.contains("drawer-collapsed"));
 });
 document.querySelectorAll(".drawer-open").forEach((button) => button.addEventListener("click", openDrawer));
-$("drawer-backdrop").addEventListener("click", () => closeDrawer());
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && document.body.classList.contains("drawer-open-state")) closeDrawer();
-});
-try { if (localStorage.getItem("drawerCollapsed") === "1") $("app-layout").classList.add("drawer-collapsed"); } catch (_) {}
-overlayQuery.addEventListener("change", syncDrawerMode);
-syncDrawerMode();
+{
+  let collapsed = false;
+  try { collapsed = localStorage.getItem("drawerCollapsed") === "1"; } catch (_) {}
+  setDrawerCollapsed(collapsed);
+}
 $("interfaces-toggle").addEventListener("click", () => {
   const button = $("interfaces-toggle");
   const expanded = button.getAttribute("aria-expanded") === "true";
@@ -2790,8 +3002,10 @@ $("interfaces-toggle").addEventListener("click", () => {
   $("interfaces-body").hidden = expanded;
   $("interfaces-sidebar").classList.toggle("collapsed", expanded);
 });
-$("residue-tab").addEventListener("click", () => { state.activeTab = "residue"; renderTabs(); });
-$("contact-tab").addEventListener("click", () => { state.activeTab = "contact"; renderTabs(); });
+$("contact-map-popout").addEventListener("click", openContactPopout);
+window.addEventListener("pagehide", () => { if (state.mapPopout && !state.mapPopout.closed) state.mapPopout.close(); });
+// The viewer fills a flexible-height card, so resize NGL whenever it changes size.
+new ResizeObserver(() => state.stage?.handleResize()).observe($("surface-view"));
 $("pocket-result").addEventListener("click", (event) => {
   if (event.target.id === "show-pocket-highlight") {
     state.pocketHighlightCancelled = false;
@@ -2805,6 +3019,9 @@ $("pocket-result").addEventListener("click", (event) => {
   }
 });
 
+initSettingsMenu();
+initTableTabs();
+initSortableTables();
 initSurfaceEvents();
 initFaceViewEvents();
 initResidueHighlightPanel();

@@ -8,170 +8,173 @@
 </head>
 <body>
   <main class="shell">
-    <header class="hero">
-      <div>
-        <p class="eyebrow">STRUCTURAL BIOLOGY WORKBENCH</p>
-        <h1>Protein interface analyzer</h1>
-        <p class="lede">Upload a coordinate file or retrieve a PDB entry to inspect contacts, buried surface, convexity, electrostatics, and selected binding pockets.</p>
-      </div>
-      <div class="badge">Local analysis · results stay on this computer</div>
-    </header>
-
-    <div id="app-layout" class="app-layout">
-      <aside id="source-drawer" class="source-drawer" aria-label="Open a structure and recent analyses">
-        <div class="menu-head">
-          <h2 class="menu-title">Open a structure</h2>
-          <button id="drawer-toggle" class="menu-toggle" type="button" aria-expanded="true" aria-controls="drawer-body" aria-label="Collapse menu" title="Collapse menu">‹</button>
-        </div>
-        <div id="drawer-body" class="drawer-body">
-          <div class="open-block">
-            <form id="pdb-form" class="fetch-row">
-              <label class="field"><span class="field-label">PDB ID</span><input id="pdb-id" pattern="[A-Za-z0-9]{4}" maxlength="4" placeholder="3BPN" autocomplete="off" spellcheck="false" required></label>
-              <label class="field"><span class="field-label">Assembly</span><input id="assembly-id" placeholder="Deposited" autocomplete="off"></label>
-              <button class="fetch-button" type="submit">Fetch</button>
-            </form>
-            <p id="assembly-note" class="field-hint" hidden></p>
-            <form id="upload-form" class="drop-zone">
-              <label id="drop-label" class="drop-label" for="structure-file">
-                <input id="structure-file" name="file" type="file" accept=".pdb,.ent,.cif,.mmcif,.gz" required>
-                <span id="file-label">Drop a .pdb or .cif file, or <u>browse</u></span>
-              </label>
-              <button id="upload-submit" class="drop-submit" type="submit" hidden>Analyze</button>
-            </form>
-          </div>
-          <section class="history-zone" aria-labelledby="history-heading">
-            <div class="history-head">
-              <h3 id="history-heading">Recent analyses <span id="history-count" class="history-count"></span></h3>
-              <button id="refresh-history" class="text-button" type="button" aria-label="Refresh recent analyses" title="Refresh">↻</button>
-              <button id="clear-history" class="text-button danger" type="button" disabled>Clear all</button>
-            </div>
-            <div id="history" class="history-list"><p class="history-empty">Structures you open appear here.</p></div>
-          </section>
-        </div>
-      </aside>
-      <div id="drawer-backdrop" class="drawer-backdrop" hidden></div>
-
-      <div id="main-column" class="main-column">
-    <div id="status-message" class="notice" hidden></div>
-    <section id="empty-workspace" class="panel empty-workspace">
-      <h2>No analysis open</h2>
-      <p class="muted">Fetch a PDB entry, drop a coordinate file, or pick one of your recent analyses.</p>
-      <button class="drawer-open primary" type="button" aria-controls="source-drawer">Open structure</button>
-    </section>
-
-    <section id="workspace" hidden>
-      <div class="workspace-head">
-        <div><p class="eyebrow">ACTIVE ANALYSIS</p><h2 id="analysis-title">—</h2><p id="analysis-meta" class="muted">—</p></div>
-        <div class="workspace-actions"><button id="drawer-open" class="drawer-open text-button" type="button" aria-controls="source-drawer">Open structure</button><a id="export-link" class="export-link" href="#">Download ZIP</a><div id="analysis-status" class="status-pill">queued</div></div>
-      </div>
-
-      <div class="workspace-layout">
-        <aside id="interfaces-sidebar" class="panel interfaces-sidebar" aria-label="Interface chain-pair results">
-          <div class="sidebar-heading">
-            <div><p class="eyebrow">INTERFACES</p><h2>Chain-pair results</h2></div>
-            <button id="interfaces-toggle" class="icon-button" type="button" aria-expanded="true" aria-controls="interfaces-body" title="Collapse interface results">−</button>
-          </div>
-          <div id="interfaces-body">
-            <p id="chain-count" class="muted"></p>
-            <div id="interfaces" class="interface-list"><p class="muted">Waiting for interface results…</p></div>
-            <div id="curvature" class="curvature-box"><strong>Surface curvature</strong><p class="muted">Starts automatically after interface analysis.</p></div>
-          </div>
-        </aside>
-
-        <div class="workspace-main">
-          <section id="surface-panel" class="panel surface-panel">
-            <div class="section-heading"><div><p class="eyebrow">STRUCTURE AND SURFACE</p><h2>3D protein surface</h2><p id="surface-view-help" class="muted">Drag to rotate, scroll to zoom, or select a residue in the surface, contact map, or tables.</p></div><span id="surface-status" class="status-pill">waiting</span></div>
-            <div class="tab-strip" role="tablist" aria-label="Surface views">
+    <div id="app-layout" class="app-layout no-analysis">
+      <!-- Left: the structure viewer stays fixed while the outputs scroll. -->
+      <section id="surface-panel" class="viewer-card surface-panel" aria-labelledby="viewer-heading">
+        <h2 id="viewer-heading" class="visually-hidden">3D protein surface</h2>
+        <div class="viewer-toolbar">
+          <div class="viewer-modes">
+            <div class="tab-strip segmented" role="tablist" aria-label="Surface views">
               <button id="surface-interactive-tab" class="tab-button active" type="button" role="tab" aria-selected="true" aria-controls="surface-interactive-panel">Interactive 3D</button>
-              <button id="surface-faces-tab" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="surface-faces-panel" tabindex="-1">Binding faces</button>
+              <button id="surface-faces-tab" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="surface-faces-panel" tabindex="-1">Side-by-side faces</button>
             </div>
-            <div class="surface-controls">
-              <div id="surface-mode-control" class="surface-mode-control" role="group" aria-label="Surface coloring mode">
-                <span class="surface-control-label">Surface coloring</span>
-                <div class="surface-mode-toggle">
-                  <button id="surface-mode-convexity" class="mode-button active" type="button" aria-pressed="true">Convexity</button>
-                  <button id="surface-mode-electrostatics" class="mode-button" type="button" aria-pressed="false" disabled>Electrostatics</button>
-                </div>
-                <span id="electrostatics-status" class="surface-mode-status" role="status">Preparing optional APBS potential…</span>
-                <button id="electrostatics-retry" class="quiet" type="button" hidden>Retry</button>
+            <div id="surface-mode-control" class="surface-mode-control" role="group" aria-label="Surface coloring mode">
+              <span class="surface-control-label visually-hidden">Surface coloring</span>
+              <div class="surface-mode-toggle segmented">
+                <button id="surface-mode-convexity" class="mode-button active" type="button" aria-pressed="true">Curvature</button>
+                <button id="surface-mode-electrostatics" class="mode-button" type="button" aria-pressed="false" disabled>Electrostatics</button>
               </div>
+            </div>
+          </div>
+          <div class="viewer-actions">
+            <span id="surface-status" class="status-pill">waiting</span>
+            <button id="settings-toggle" class="settings-toggle" type="button" aria-expanded="false" aria-controls="settings-popover">Settings <span aria-hidden="true">▾</span></button>
+          </div>
+        </div>
+        <div class="viewer-subline">
+          <span id="electrostatics-status" class="surface-mode-status" role="status">Preparing optional APBS potential…</span>
+          <button id="electrostatics-retry" class="quiet" type="button" hidden>Retry</button>
+        </div>
+
+        <div id="surface-interactive-panel" class="viewer-body" role="tabpanel" aria-labelledby="surface-interactive-tab">
+          <div id="surface-stage" class="surface-stage">
+            <div id="surface-view" class="surface-view" role="img" aria-label="Interactive three-dimensional binding interface"></div>
+            <p id="viewer-empty" class="viewer-empty">Open a structure to see its surface here.</p>
+          </div>
+        </div>
+        <section id="surface-faces-panel" class="viewer-body binding-faces" role="tabpanel" aria-labelledby="surface-faces-tab" hidden>
+          <div class="face-view-controls">
+            <label class="toggle" title="Turn off to rotate each chain independently. Turning it back on aligns both views to the last pane you rotated."><input id="face-rotation-coupled" type="checkbox" aria-controls="face-view-grid" checked> Couple rotation</label>
+            <p id="face-view-status" class="note" role="status">Choose an interface to view its binding faces.</p>
+            <button id="face-view-retry" class="secondary" type="button" hidden>Retry</button>
+          </div>
+          <div id="face-view-grid" class="face-view-grid" hidden>
+            <section class="face-panel" aria-labelledby="face-chain-a-label">
+              <div class="face-panel-heading"><h3 id="face-chain-a-label">First partner</h3><div class="face-zoom-controls" aria-label="First partner zoom"><button type="button" data-face-zoom="a" data-zoom="out" aria-label="Zoom out first partner">−</button><button type="button" data-face-zoom="a" data-zoom="in" aria-label="Zoom in first partner">+</button></div></div>
+              <div id="face-view-a" class="face-viewport" role="img" aria-label="First partner binding face with mirrored coupled rotation" tabindex="0"></div>
+              <p id="face-plane-a" class="face-plane-note"></p>
+            </section>
+            <section class="face-panel" aria-labelledby="face-chain-b-label">
+              <div class="face-panel-heading"><h3 id="face-chain-b-label">Second partner</h3><div class="face-zoom-controls" aria-label="Second partner zoom"><button type="button" data-face-zoom="b" data-zoom="out" aria-label="Zoom out second partner">−</button><button type="button" data-face-zoom="b" data-zoom="in" aria-label="Zoom in second partner">+</button></div></div>
+              <div id="face-view-b" class="face-viewport" role="img" aria-label="Second partner binding face with mirrored coupled rotation" tabindex="0"></div>
+              <p id="face-plane-b" class="face-plane-note"></p>
+            </section>
+          </div>
+          <p id="face-hover-readout" class="face-hover-readout" aria-live="polite">Hover a residue to highlight its closest partner.</p>
+        </section>
+
+        <div class="viewer-footer">
+          <div class="surface-colorbar"><span id="surface-color-min">Concave</span><span id="surface-color-ramp" class="surface-color-ramp" aria-hidden="true"><span class="surface-ramp-zero">0</span></span><span id="surface-color-max">Convex</span><span id="surface-color-label">H (Å⁻¹) · 6 Å neighborhoods</span><span class="surface-grey-swatch" aria-hidden="true"></span><span>outside padded contact</span></div>
+          <p id="surface-selection" class="note" aria-live="polite">Select a residue in the surface, contact map, or interface table.</p>
+          <p id="surface-view-help" class="note">Drag to rotate, scroll to zoom, or select a residue in the surface, contact map, or tables.</p>
+          <p id="surface-note" class="note"></p>
+        </div>
+
+        <div id="settings-popover" class="settings-popover" role="region" aria-label="Viewer settings" hidden>
+          <aside id="interfaces-sidebar" class="settings-section interfaces-sidebar" aria-label="Interface chain-pair results">
+            <div class="settings-heading">
+              <h3>Interface</h3>
+              <button id="interfaces-toggle" class="icon-button" type="button" aria-expanded="true" aria-controls="interfaces-body" title="Collapse interface results">−</button>
+            </div>
+            <div id="interfaces-body">
+              <p id="chain-count" class="muted"></p>
+              <div id="interfaces" class="interface-list"><p class="muted">Waiting for interface results…</p></div>
+              <div id="curvature" class="curvature-box"><strong>Surface curvature</strong><p class="muted">Starts automatically after interface analysis.</p></div>
+            </div>
+          </aside>
+
+          <section class="settings-section" aria-labelledby="display-heading">
+            <div class="settings-heading"><h3 id="display-heading">Surface display</h3></div>
+            <div class="surface-controls">
               <label>Curvature resolution<select id="surface-resolution"><option value="4">4 Å · fine</option><option value="6" selected>6 Å · default</option><option value="8">8 Å · broad</option></select></label>
-              <label>Surface opacity<input id="surface-opacity" type="range" min="0" max="0.85" step="0.05" value="0.55"><output id="surface-opacity-value" for="surface-opacity">55%</output></label>
+              <label>Surface opacity<input id="surface-opacity" type="range" min="0" max="1" step="0.05" value="0.55"><output id="surface-opacity-value" for="surface-opacity">55%</output></label>
               <label>Contact padding<input id="surface-padding" type="range" min="0" max="8" step="0.5" value="2"><output id="surface-padding-value" for="surface-padding">2.0 Å</output></label>
               <label id="surface-separation-control">Separate opposing surfaces<input id="surface-separation" type="range" min="0" max="12" step="0.5" value="0"><output id="surface-separation-value" for="surface-separation">0.0 Å</output></label>
               <div id="chain-toggles" class="chain-toggles" aria-label="Chain visibility"></div>
             </div>
-            <div class="surface-colorbar"><span id="surface-color-min">Concave</span><span id="surface-color-ramp" class="surface-color-ramp" aria-hidden="true"><span class="surface-ramp-zero">0</span></span><span id="surface-color-max">Convex</span><span id="surface-color-label">H (Å⁻¹) · 6 Å neighborhoods</span><span class="surface-grey-swatch" aria-hidden="true"></span><span>outside padded contact</span></div>
-            <div id="protein-stats" class="surface-stats" aria-label="Whole-protein surface summaries"></div>
-            <div id="surface-pair-stats" class="surface-stats" aria-label="Selected interface surface summaries"></div>
-            <div id="surface-interactive-panel" role="tabpanel" aria-labelledby="surface-interactive-tab">
-              <div id="surface-stage" class="surface-stage">
-                <div id="surface-view" class="surface-view" role="img" aria-label="Interactive three-dimensional binding interface"></div>
-                <aside id="residue-highlight-panel" class="surface-side" aria-label="Highlight residue surfaces">
-                  <div class="highlight-heading">
-                    <h3>Highlight residues</h3>
-                    <button id="residue-highlight-toggle" class="icon-button" type="button" aria-expanded="true" aria-controls="residue-highlight-body" aria-label="Collapse residue highlights" title="Collapse residue highlights">−</button>
-                  </div>
-                  <div id="residue-highlight-body">
-                    <form id="residue-highlight-form" class="highlight-form">
-                      <label>Default chain<select id="highlight-chain"></select></label>
-                      <label>Residue numbers<textarea id="highlight-residues" rows="3" placeholder="A:45-52, 60, B:101" aria-describedby="highlight-help" spellcheck="false"></textarea></label>
-                      <p id="highlight-help" class="field-hint">Separate numbers or ranges with commas or spaces. Add a chain prefix to select another chain, such as B:101 or A:63A.</p>
-                      <div class="highlight-actions">
-                        <button class="primary" type="submit">Highlight</button>
-                        <button id="highlight-clear" class="secondary" type="button">Clear</button>
-                      </div>
-                    </form>
-                    <p id="highlight-feedback" class="note" aria-live="polite">Enter residue numbers to highlight their surface patches.</p>
-                  </div>
-                </aside>
-              </div>
-            </div>
-            <section id="surface-faces-panel" class="binding-faces" role="tabpanel" aria-labelledby="surface-faces-tab" hidden>
-              <div class="face-view-controls">
-                <label class="toggle" title="Turn off to rotate each chain independently. Turning it back on aligns both views to the last pane you rotated."><input id="face-rotation-coupled" type="checkbox" aria-controls="face-view-grid" checked> Couple rotation</label>
-              </div>
-              <div class="face-message-row">
-                <p id="face-view-status" class="note" role="status">Choose an interface to view its binding faces.</p>
-                <button id="face-view-retry" class="secondary" type="button" hidden>Retry</button>
-              </div>
-              <div id="face-view-grid" class="face-view-grid" hidden>
-                <section class="face-panel" aria-labelledby="face-chain-a-label">
-                  <div class="face-panel-heading"><h3 id="face-chain-a-label">First partner</h3><div class="face-zoom-controls" aria-label="First partner zoom"><button type="button" data-face-zoom="a" data-zoom="out" aria-label="Zoom out first partner">−</button><button type="button" data-face-zoom="a" data-zoom="in" aria-label="Zoom in first partner">+</button></div></div>
-                  <div id="face-view-a" class="face-viewport" role="img" aria-label="First partner binding face with mirrored coupled rotation" tabindex="0"></div>
-                  <p id="face-plane-a" class="face-plane-note"></p>
-                </section>
-                <section class="face-panel" aria-labelledby="face-chain-b-label">
-                  <div class="face-panel-heading"><h3 id="face-chain-b-label">Second partner</h3><div class="face-zoom-controls" aria-label="Second partner zoom"><button type="button" data-face-zoom="b" data-zoom="out" aria-label="Zoom out second partner">−</button><button type="button" data-face-zoom="b" data-zoom="in" aria-label="Zoom in second partner">+</button></div></div>
-                  <div id="face-view-b" class="face-viewport" role="img" aria-label="Second partner binding face with mirrored coupled rotation" tabindex="0"></div>
-                  <p id="face-plane-b" class="face-plane-note"></p>
-                </section>
-              </div>
-              <p id="face-hover-readout" class="face-hover-readout" aria-live="polite">Hover a residue to highlight its closest partner.</p>
-            </section>
-            <div id="surface-tip" class="surface-tip" role="tooltip" aria-hidden="true"></div>
-            <p id="surface-selection" class="note" aria-live="polite">Select a residue in the surface, contact map, or interface table.</p>
-            <p id="surface-note" class="note"></p>
-            <div class="table-wrap curvature-table-wrap"><table><thead><tr><th>Chain</th><th>Residue</th><th>Patch area</th><th>Mean H</th><th>Convex</th><th>Concave</th><th>ΔSASA</th></tr></thead><tbody id="curvature-table"></tbody></table></div>
           </section>
+
+          <aside id="residue-highlight-panel" class="settings-section surface-side" aria-label="Highlight residue surfaces">
+            <div class="settings-heading highlight-heading">
+              <h3>Select residues</h3>
+              <button id="residue-highlight-toggle" class="icon-button" type="button" aria-expanded="true" aria-controls="residue-highlight-body" aria-label="Collapse residue highlights" title="Collapse residue highlights">−</button>
+            </div>
+            <div id="residue-highlight-body">
+              <form id="residue-highlight-form" class="highlight-form">
+                <label>Default chain<select id="highlight-chain"></select></label>
+                <label>Residue numbers<textarea id="highlight-residues" rows="2" placeholder="A:45-52, 60, B:101" aria-describedby="highlight-help" spellcheck="false"></textarea></label>
+                <p id="highlight-help" class="field-hint">Separate numbers or ranges with commas or spaces. Add a chain prefix to select another chain, such as B:101 or A:63A.</p>
+                <div class="highlight-actions">
+                  <button class="primary" type="submit">Highlight</button>
+                  <button id="highlight-clear" class="secondary" type="button">Clear</button>
+                </div>
+              </form>
+              <p id="highlight-feedback" class="note" aria-live="polite">Enter residue numbers to highlight their surface patches.</p>
+            </div>
+          </aside>
+
+          <section class="settings-section" aria-labelledby="summary-heading">
+            <div class="settings-heading"><h3 id="summary-heading">Binding summary</h3></div>
+            <div id="surface-pair-stats" class="surface-stats" aria-label="Selected interface surface summaries"></div>
+            <div id="protein-stats" class="surface-stats" aria-label="Whole-protein surface summaries"></div>
+          </section>
+        </div>
+      </section>
+
+      <!-- Right: a collapsible load bar, then every output in reading order. -->
+      <div id="main-column" class="main-column">
+        <aside id="source-drawer" class="source-drawer" aria-label="Open a structure and recent analyses">
+          <div class="menu-head">
+            <h1 class="menu-title">Protein interface analyzer</h1>
+            <span class="menu-hint">Open a structure · results stay on this computer</span>
+            <button id="drawer-toggle" class="menu-toggle" type="button" aria-expanded="true" aria-controls="drawer-body" aria-label="Collapse structure menu" title="Collapse structure menu">▴</button>
+          </div>
+          <div id="drawer-body" class="drawer-body">
+            <div class="open-block">
+              <form id="pdb-form" class="fetch-row">
+                <label class="field"><span class="field-label">PDB ID</span><input id="pdb-id" pattern="[A-Za-z0-9]{4}" maxlength="4" placeholder="3BPN" autocomplete="off" spellcheck="false" required></label>
+                <label class="field"><span class="field-label">Assembly</span><input id="assembly-id" placeholder="Deposited" autocomplete="off"></label>
+                <button class="fetch-button" type="submit">Fetch</button>
+              </form>
+              <form id="upload-form" class="drop-zone">
+                <label id="drop-label" class="drop-label" for="structure-file">
+                  <input id="structure-file" name="file" type="file" accept=".pdb,.ent,.cif,.mmcif,.gz" required>
+                  <span id="file-label">Drop a .pdb or .cif file, or <u>browse</u></span>
+                </label>
+                <button id="upload-submit" class="drop-submit" type="submit" hidden>Analyze</button>
+              </form>
+              <p id="assembly-note" class="field-hint" hidden></p>
+            </div>
+            <section class="history-zone" aria-labelledby="history-heading">
+              <div class="history-head">
+                <h3 id="history-heading">Recent analyses <span id="history-count" class="history-count"></span></h3>
+                <button id="refresh-history" class="text-button" type="button" aria-label="Refresh recent analyses" title="Refresh">↻</button>
+                <button id="clear-history" class="text-button danger" type="button" disabled>Clear all</button>
+              </div>
+              <div id="history" class="history-list"><p class="history-empty">Structures you open appear here.</p></div>
+            </section>
+          </div>
+        </aside>
+
+        <div id="status-message" class="notice" hidden></div>
+        <section id="empty-workspace" class="panel empty-workspace">
+          <h2>No analysis open</h2>
+          <p class="muted">Fetch a PDB entry, drop a coordinate file, or pick one of your recent analyses above.</p>
+          <button class="drawer-open primary" type="button" aria-controls="source-drawer">Open structure</button>
+        </section>
+
+        <section id="workspace" class="workspace" hidden>
+          <div class="workspace-head">
+            <div><p class="eyebrow">ACTIVE ANALYSIS</p><h2 id="analysis-title">—</h2><p id="analysis-meta" class="muted">—</p></div>
+            <div class="workspace-actions"><button id="drawer-open" class="drawer-open text-button" type="button" aria-controls="source-drawer">Open structure</button><a id="export-link" class="export-link" href="#">Download ZIP</a><div id="analysis-status" class="status-pill">queued</div></div>
+          </div>
 
           <section id="pair-workspace" class="panel pair-panel" hidden>
             <div class="section-heading"><div><p class="eyebrow">SELECTED INTERFACE</p><h2 id="pair-title">—</h2></div><span id="pair-summary" class="muted"></span></div>
             <div id="pair-stats" class="stat-grid"></div>
 
-            <div class="tab-strip" role="tablist" aria-label="Selected interface details">
-              <button id="residue-tab" class="tab-button active" type="button" role="tab" aria-selected="true" aria-controls="residue-panel">Residue interface</button>
-              <button id="contact-tab" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="contact-panel">Closest contact pairs</button>
-            </div>
-            <section id="residue-panel" class="tab-panel" role="tabpanel" aria-labelledby="residue-tab">
-              <div class="table-wrap interface-table-wrap"><table><thead><tr><th>Residue</th><th>ΔSASA</th><th>Contacts</th><th>Closest</th><th>Partners</th></tr></thead><tbody id="residue-table"></tbody></table></div>
-            </section>
-            <section id="contact-panel" class="tab-panel" role="tabpanel" aria-labelledby="contact-tab" hidden>
-              <div class="table-wrap interface-table-wrap"><table><thead><tr><th>Target</th><th>Partner</th><th>Distance</th><th>Contacts</th><th>H-bond</th><th>Salt</th><th>Like charge</th></tr></thead><tbody id="contact-table"></tbody></table></div>
-            </section>
-
             <section class="contact-map-section" aria-labelledby="contact-map-heading">
-              <div class="section-heading compact-heading"><div><p class="eyebrow">CONTACT MAP</p><h3 id="contact-map-heading">Residue contact grid</h3></div><span id="contact-map-count" class="muted"></span></div>
+              <div class="section-heading compact-heading"><div><p class="eyebrow">CONTACT MAP</p><h3 id="contact-map-heading">Residue contact grid</h3></div><div class="map-heading-actions"><span id="contact-map-count" class="muted"></span><button id="contact-map-popout" class="secondary small-button" type="button" title="Open the contact map in a separate, resizable window">Open in new window ↗</button></div></div>
               <div class="contact-map-controls">
                 <label>Distance cutoff<select id="contact-cutoff"><option value="4.5">4.5 Å</option><option value="5" selected>5.0 Å</option><option value="6">6.0 Å</option></select></label>
                 <label>Contact type<select id="contact-type"><option value="all" selected>All contacts</option><option value="tight">Tight ≤4 Å</option><option value="hb">H-bond</option><option value="sb">Salt bridge</option><option value="like">Like charge</option></select></label>
@@ -181,7 +184,6 @@
               <p id="contact-col-axis" class="map-axis-title"></p>
               <div id="contact-grid" class="contact-grid" role="grid" aria-label="Residue contact map"></div>
               <p id="contact-row-axis" class="map-axis-title"></p>
-              <div id="contact-tip" class="contact-tip" role="tooltip" aria-hidden="true"></div>
               <div class="contact-legends">
                 <div><strong>Distance</strong><div id="distance-legend" class="distance-legend"></div></div>
                 <div><strong>Residue charge</strong><div class="legend-keys"><span><i class="legend-dot salt">+</i> K / R</span><span><i class="legend-dot like">−</i> D / E</span><span>Other residues uncharged</span></div></div>
@@ -190,8 +192,31 @@
                 <div><strong>ΔSASA lane</strong><div class="legend-keys"><span><i class="legend-sasa"></i> Opaque = 120 Å²</span><span><i class="legend-sasa none"></i> Not computed</span></div></div>
                 <div><strong>Interactions</strong><div class="legend-keys"><span><i class="legend-dot salt">+</i> Salt bridge</span><span><i class="legend-dot like">×</i> Like charge</span><span><i class="legend-dot hbond">H</i> H-bond</span></div></div>
               </div>
-              <div class="table-wrap contact-map-table-wrap"><table><thead><tr><th>Residue A</th><th>Class</th><th>q</th><th>ΔSASA</th><th>Residue B</th><th>Class</th><th>q</th><th>ΔSASA</th><th>Distance</th><th>Contacts</th><th>Tight</th><th>H-bond</th><th>Salt</th><th>Like</th></tr></thead><tbody id="contact-map-table"></tbody></table></div>
               <p id="contact-map-note" class="note"></p>
+            </section>
+          </section>
+
+          <section id="tables-panel" class="panel tables-panel" aria-labelledby="tables-heading" hidden>
+            <div class="section-heading compact-heading"><div><p class="eyebrow">TABLES</p><h2 id="tables-heading">Interface details</h2></div><span class="muted">Select a column heading to sort</span></div>
+            <div class="tab-strip" role="tablist" aria-label="Selected interface details">
+              <button id="residue-tab" class="tab-button active" type="button" role="tab" data-tab="residue" aria-selected="true" aria-controls="residue-panel">Residue interface</button>
+              <button id="contact-tab" class="tab-button" type="button" role="tab" data-tab="contact" aria-selected="false" aria-controls="contact-panel" tabindex="-1">Closest contact pairs</button>
+              <button id="map-pairs-tab" class="tab-button" type="button" role="tab" data-tab="map-pairs" aria-selected="false" aria-controls="map-pairs-panel" tabindex="-1">Contact map pairs</button>
+              <button id="curvature-tab" class="tab-button" type="button" role="tab" data-tab="curvature" aria-selected="false" aria-controls="curvature-panel" tabindex="-1">Surface curvature</button>
+            </div>
+            <section id="residue-panel" class="tab-panel" role="tabpanel" aria-labelledby="residue-tab">
+              <div class="table-wrap"><table class="sortable"><thead><tr><th>Residue</th><th>ΔSASA</th><th>Contacts</th><th>Closest</th><th>Partners</th></tr></thead><tbody id="residue-table"></tbody></table></div>
+            </section>
+            <section id="contact-panel" class="tab-panel" role="tabpanel" aria-labelledby="contact-tab" hidden>
+              <div class="table-wrap"><table class="sortable"><thead><tr><th>Target</th><th>Partner</th><th>Distance</th><th>Contacts</th><th>H-bond</th><th>Salt</th><th>Like charge</th></tr></thead><tbody id="contact-table"></tbody></table></div>
+            </section>
+            <section id="map-pairs-panel" class="tab-panel" role="tabpanel" aria-labelledby="map-pairs-tab" hidden>
+              <p class="note">Rows follow the contact map's distance cutoff and contact type.</p>
+              <div class="table-wrap"><table class="sortable"><thead><tr><th>Residue A</th><th>Class</th><th>q</th><th>ΔSASA</th><th>Residue B</th><th>Class</th><th>q</th><th>ΔSASA</th><th>Distance</th><th>Contacts</th><th>Tight</th><th>H-bond</th><th>Salt</th><th>Like</th></tr></thead><tbody id="contact-map-table"></tbody></table></div>
+            </section>
+            <section id="curvature-panel" class="tab-panel" role="tabpanel" aria-labelledby="curvature-tab" hidden>
+              <p class="note">Interface residue patches at the curvature resolution chosen in Settings.</p>
+              <div class="table-wrap"><table class="sortable"><thead><tr><th>Chain</th><th>Residue</th><th>Patch area</th><th>Mean H</th><th>Convex</th><th>Concave</th><th>ΔSASA</th></tr></thead><tbody id="curvature-table"></tbody></table></div>
             </section>
           </section>
 
@@ -206,7 +231,7 @@
               <label>Target chain<select id="pocket-target"></select></label>
               <label id="pocket-anchor-field">Anchor residue<select id="pocket-anchor"></select></label>
               <label>Partner chain<select id="pocket-partner"></select></label>
-              <label><span id="pocket-radius-label">Radius</span><input id="pocket-radius" type="number" min="4" max="12" step="0.5" value="8" required><span>Å</span></label>
+              <label for="pocket-radius"><span class="field-label-row"><span id="pocket-radius-label">Radius</span> <span class="unit">(Å)</span></span><input id="pocket-radius" type="number" min="4" max="12" step="0.5" value="8" required></label>
               <button id="pocket-submit" class="primary" type="submit">Analyze pocket</button>
               <div id="pocket-residue-field" class="pocket-residue-field" hidden>
                 <label>Residue numbers<textarea id="pocket-residues" rows="2" placeholder="63, 64, 66-70, B:12" aria-describedby="pocket-residue-help" spellcheck="false" disabled></textarea></label>
@@ -217,12 +242,12 @@
             </form>
             <div id="pocket-result" class="pocket-result"><p class="muted">Choose a residue anchor or residue list and submit a pocket analysis.</p></div>
           </section>
-        </div>
-      </div>
-    </section>
+        </section>
       </div>
     </div>
   </main>
+  <div id="surface-tip" class="surface-tip" role="tooltip" aria-hidden="true"></div>
+  <div id="contact-tip" class="contact-tip" role="tooltip" aria-hidden="true"></div>
   <script src="/static/ngl.js"></script>
   <script src="/static/app.js"></script>
 </body>

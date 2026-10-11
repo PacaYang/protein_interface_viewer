@@ -31,11 +31,32 @@ def test_workspace_contains_requested_sections_and_controls():
     assert 'id="contact-panel"' in html
     assert "Residue interface" in html
     assert "Closest contact pairs" in html
-    for element_id in ("source-drawer", "drawer-toggle", "drawer-open", "drawer-backdrop", "main-column",
+    for element_id in ("source-drawer", "drawer-toggle", "drawer-body", "drawer-open", "main-column",
                        "upload-form", "upload-submit", "pdb-form", "history", "clear-history"):
         assert f'id="{element_id}"' in html
-    # The 3D surface is the first panel in the workspace.
-    assert html.index('id="surface-panel"') < html.index('id="pair-workspace"')
+    # The 3D viewer is the left column; the load bar and outputs follow on the right.
+    assert html.index('id="surface-panel"') < html.index('id="main-column"')
+    assert html.index('id="source-drawer"') < html.index('id="pair-workspace"')
+
+
+def test_viewer_settings_menu_and_output_order():
+    html = (STATIC / "index.html").read_text()
+    for element_id in ("settings-toggle", "settings-popover", "contact-map-popout", "tables-panel",
+                       "map-pairs-tab", "curvature-tab"):
+        assert f'id="{element_id}"' in html
+    # Viewer controls, the interface list, residue selection, and summaries live in the dropdown.
+    popover = html.index('id="settings-popover"')
+    popover_end = html.index('id="main-column"')
+    for element_id in ("interfaces-sidebar", "surface-resolution", "surface-opacity", "surface-padding",
+                       "residue-highlight-panel", "surface-pair-stats", "protein-stats"):
+        assert popover < html.index(f'id="{element_id}"') < popover_end
+    # Outputs: contact map first, then tables, then pockets.
+    assert html.index('id="contact-grid"') < html.index('id="residue-table"') < html.index('id="pocket-panel"')
+    assert html.count('class="sortable"') == 4
+    javascript = (STATIC / "app.js").read_text()
+    for function_name in ("setSettingsOpen", "initSortableTables", "applyTableSort", "fitContactGrid",
+                          "drawContactGrid", "openContactPopout", "renderContactPopout"):
+        assert f"function {function_name}" in javascript
 
 
 def test_browser_orchestration_contains_linked_selection_and_pocket_actions():
@@ -61,11 +82,11 @@ def test_browser_orchestration_contains_linked_selection_and_pocket_actions():
     assert "convexitySurfaceColors" in javascript
 
 
-def test_history_renders_chain_strips_and_overlay_drawer():
+def test_history_renders_chain_strips_and_collapsible_bar():
     javascript = (STATIC / "app.js").read_text()
-    for function_name in ("chainStrip", "historyRow", "openDrawer", "closeDrawer", "bindDropZone"):
+    for function_name in ("chainStrip", "historyRow", "openDrawer", "closeDrawer", "setDrawerCollapsed", "bindDropZone"):
         assert f"function {function_name}" in javascript
-    assert "max-width: 1100px" in javascript
+    assert "drawerCollapsed" in javascript
 
 
 def test_residue_highlight_panel_and_residue_defined_pockets():
